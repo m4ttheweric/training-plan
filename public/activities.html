@@ -114,6 +114,30 @@
     text-decoration: none;
   }
   .btn-strava:hover { opacity: 0.9; }
+
+  .detail-row td { padding: 0; border-bottom: 1px solid var(--grid); }
+  .detail-content {
+    padding: 16px 24px;
+    background: var(--card); border-top: 1px solid var(--card-border);
+  }
+  .split-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 12px; }
+  .split-table th {
+    text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-muted); font-weight: 500; padding: 4px 8px; border-bottom: 1px solid var(--grid);
+  }
+  .split-table th.num { text-align: right; }
+  .split-table td { padding: 6px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  .split-table td.num { text-align: right; }
+  .split-table tr:last-child td { border-bottom: none; }
+  .narrative-card {
+    background: var(--surface); border: 1px solid var(--card-border); border-radius: 6px;
+    padding: 16px; font-size: 13px; line-height: 1.6; color: var(--ink-secondary);
+    white-space: pre-wrap;
+  }
+  .narrative-card strong { color: var(--ink-primary); }
+  tbody tr.run-row { cursor: pointer; }
+  tbody tr.run-row:hover { background: var(--blue-light); }
+  tbody tr.expanded { background: var(--blue-light); }
 </style>
 </head>
 <body>
@@ -217,6 +241,86 @@
     return `<span class="type-badge type-${type}">${label}</span>`;
   }
 
+  function splitPace(speedMs) {
+    if (!speedMs) return '--';
+    const paceMin = 1609.34 / speedMs / 60;
+    const m = Math.floor(paceMin);
+    const s = Math.round((paceMin - m) * 60);
+    return m + ':' + String(s).padStart(2, '0') + '/mi';
+  }
+
+  function elevFt(meters) {
+    if (meters == null) return '--';
+    const ft = meters * 3.281;
+    return (ft >= 0 ? '+' : '') + Math.round(ft) + ' ft';
+  }
+
+  function renderSplitTable(splits) {
+    let html = '<table class="split-table"><thead><tr>';
+    html += '<th>Mile</th><th class="num">Pace</th><th class="num">HR</th><th class="num">Elev</th><th class="num">Zone</th>';
+    html += '</tr></thead><tbody>';
+    for (const s of splits) {
+      html += '<tr>';
+      html += '<td>' + (s.split_index + 1) + '</td>';
+      html += '<td class="num">' + splitPace(s.average_speed) + '</td>';
+      html += '<td class="num">' + (s.average_heartrate ? Math.round(s.average_heartrate) : '--') + '</td>';
+      html += '<td class="num">' + elevFt(s.elevation_diff) + '</td>';
+      html += '<td class="num">' + (s.pace_zone || '--') + '</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+    return html;
+  }
+
+  let expandedRow = null;
+
+  async function toggleDetail(tr, stravaId) {
+    const existing = tr.nextElementSibling;
+    if (existing && existing.classList.contains('detail-row')) {
+      existing.remove();
+      tr.classList.remove('expanded');
+      expandedRow = null;
+      return;
+    }
+
+    if (expandedRow) {
+      const prev = expandedRow.nextElementSibling;
+      if (prev && prev.classList.contains('detail-row')) prev.remove();
+      expandedRow.classList.remove('expanded');
+    }
+
+    const detailTr = document.createElement('tr');
+    detailTr.className = 'detail-row';
+    const td = document.createElement('td');
+    td.colSpan = 8;
+    td.innerHTML = '<div class="detail-content"><p style="color:var(--ink-muted);font-size:12px;">Loading splits...</p></div>';
+    detailTr.appendChild(td);
+    tr.after(detailTr);
+    tr.classList.add('expanded');
+    expandedRow = tr;
+
+    try {
+      const splitsRes = await fetch('/api/activities/' + stravaId + '/splits');
+      let html = '';
+      if (splitsRes.ok) {
+        const data = await splitsRes.json();
+        html += renderSplitTable(data.splits);
+      } else {
+        html += '<p style="color:var(--ink-muted);font-size:12px;">No split data available.</p>';
+      }
+
+      const fbRes = await fetch('/api/activities/' + stravaId + '/feedback');
+      if (fbRes.ok) {
+        const fb = await fbRes.json();
+        html += '<div class="narrative-card">' + fb.narrative.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') + '</div>';
+      }
+
+      td.innerHTML = '<div class="detail-content">' + html + '</div>';
+    } catch (e) {
+      td.innerHTML = '<div class="detail-content"><p style="color:var(--accent);">Failed to load details.</p></div>';
+    }
+  }
+
   function restoreNameCell(cell, name) {
     const stravaId = cell.dataset.stravaId;
     cell.innerHTML = '<a href="https://www.strava.com/activities/' + stravaId + '" target="_blank" rel="noopener">' + (name || '--') + '</a><span class="edit-btn" title="Rename">&#9998;</span>';
@@ -313,7 +417,7 @@
 
     $('empty-state').style.display = 'none';
     tableEl.innerHTML = activities.map(a => `
-      <tr>
+      <tr${a.type === 'Run' && a.distance > 0 ? ' class="run-row" data-strava-id="' + a.strava_id + '"' : ''}>
         <td>${formatDate(a.start_date_local)}</td>
         <td class="name-cell" data-strava-id="${a.strava_id}" data-name="${(a.name || '').replace(/"/g, '&quot;')}"><a href="https://www.strava.com/activities/${a.strava_id}" target="_blank" rel="noopener">${a.name || '--'}</a><span class="edit-btn" title="Rename">&#9998;</span></td>
         <td>${typeBadge(a.type)}</td>
@@ -327,6 +431,13 @@
 
     tableEl.querySelectorAll('.edit-btn').forEach(btn => {
       btn.addEventListener('click', (e) => { e.stopPropagation(); startRename(btn.closest('.name-cell')); });
+    });
+
+    tableEl.querySelectorAll('.run-row').forEach(tr => {
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('.name-cell') || e.target.closest('.edit-btn') || e.target.tagName === 'A' || e.target.tagName === 'INPUT') return;
+        toggleDetail(tr, tr.dataset.stravaId);
+      });
     });
   }
 
