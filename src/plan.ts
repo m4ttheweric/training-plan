@@ -38,6 +38,7 @@ interface PlanDayStatus {
   plan: { type: string; miles?: number; label: string; detail?: string; newSlot?: boolean };
   status: "completed" | "partial" | "missed" | "upcoming" | "rest";
   actual?: {
+    strava_id?: number;
     distance?: number;
     moving_time?: number;
     average_speed?: number;
@@ -123,6 +124,7 @@ export function getPlanStatus(planId?: string, today?: string): PlanStatusRespon
   const latest = allDates[allDates.length - 1];
 
   const activities = getActivities({ after: earliest, before: latest + "T23:59:59", limit: 5000 }) as Array<{
+    strava_id: number;
     start_date_local: string;
     type: string;
     distance: number;
@@ -174,7 +176,7 @@ export function getPlanStatus(planId?: string, today?: string): PlanStatusRespon
         if (liftAct) {
           return {
             date, dayOfWeek: di, plan: planInfo, status: "completed" as const,
-            actual: { moving_time: liftAct.moving_time, average_heartrate: liftAct.average_heartrate, name: liftAct.name, type: liftAct.type, weather: weatherOf(liftAct) },
+            actual: { strava_id: liftAct.strava_id, moving_time: liftAct.moving_time, average_heartrate: liftAct.average_heartrate, name: liftAct.name, type: liftAct.type, weather: weatherOf(liftAct) },
           };
         }
         return { date, dayOfWeek: di, plan: planInfo, status: "missed" as const };
@@ -199,6 +201,7 @@ export function getPlanStatus(planId?: string, today?: string): PlanStatusRespon
       return {
         date, dayOfWeek: di, plan: planInfo, status,
         actual: {
+          strava_id: bestRun.strava_id,
           distance: totalDistance, moving_time: bestRun.moving_time,
           average_speed: bestRun.average_speed, average_heartrate: bestRun.average_heartrate,
           name: bestRun.name, type: bestRun.type, weather: weatherOf(bestRun),

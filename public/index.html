@@ -336,6 +336,31 @@
     .wk-total { font-size: 11px; }
     .rule { grid-template-columns: 1fr; }
   }
+
+  .day.clickable { cursor: pointer; }
+  .day.clickable:hover { background: var(--blue-light); }
+  .day.clickable.expanded { background: var(--blue-light); }
+
+  .plan-detail {
+    grid-column: 1 / -1;
+    background: var(--card); border: 1px solid var(--card-border); border-radius: 0 0 6px 6px;
+    padding: 16px 24px; margin-bottom: 8px;
+  }
+  .plan-split-table { width: 100%; max-width: 500px; border-collapse: collapse; font-size: 12px; margin-bottom: 12px; }
+  .plan-split-table th {
+    text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-muted); font-weight: 500; padding: 4px 8px; border-bottom: 1px solid var(--grid);
+  }
+  .plan-split-table th.num { text-align: right; }
+  .plan-split-table td { padding: 6px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  .plan-split-table td.num { text-align: right; }
+  .plan-split-table tr:last-child td { border-bottom: none; }
+  .plan-narrative {
+    background: var(--surface); border: 1px solid var(--card-border); border-radius: 6px;
+    padding: 16px; font-size: 13px; line-height: 1.6; color: var(--ink-secondary);
+    white-space: pre-wrap; max-width: 700px;
+  }
+  .plan-narrative strong { color: var(--ink-primary); }
 </style>
 </head>
 <body>
@@ -456,7 +481,13 @@ function renderWeekRow(week, weekStart, statusWeek, glossaryMap) {
     let cls = dayClasses(day);
     if (sd && sd.status !== 'rest' && sd.status !== 'upcoming') cls += ' status-' + sd.status;
 
-    html += '<div class="' + cls + '">';
+    let extraAttr = '';
+    if (sd && sd.actual && sd.actual.strava_id && sd.actual.type === 'Run') {
+      cls += ' clickable';
+      extraAttr = ' data-strava-id="' + sd.actual.strava_id + '"';
+    }
+
+    html += '<div class="' + cls + '"' + extraAttr + '>';
     html += '<span class="day-type">' + annotate(dayLabel(day), glossaryMap) + '</span>';
     const det = dayDetail(day);
     if (det) html += '<span class="day-dist">' + annotate(det, glossaryMap) + '</span>';
@@ -501,6 +532,82 @@ function weekStartDate(planStart, weekIndex) {
   const d = new Date(planStart + 'T12:00:00');
   d.setDate(d.getDate() + weekIndex * 7);
   return d.toISOString().slice(0, 10);
+}
+
+function splitPace(speedMs) {
+  if (!speedMs) return '--';
+  const paceMin = 1609.34 / speedMs / 60;
+  const m = Math.floor(paceMin);
+  const s = Math.round((paceMin - m) * 60);
+  return m + ':' + String(s).padStart(2, '0') + '/mi';
+}
+
+function elevFt(meters) {
+  if (meters == null) return '--';
+  const ft = meters * 3.281;
+  return (ft >= 0 ? '+' : '') + Math.round(ft) + ' ft';
+}
+
+function renderPlanSplitTable(splits) {
+  let html = '<table class="plan-split-table"><thead><tr>';
+  html += '<th>Mile</th><th class="num">Pace</th><th class="num">HR</th><th class="num">Elev</th><th class="num">Zone</th>';
+  html += '</tr></thead><tbody>';
+  for (const s of splits) {
+    html += '<tr>';
+    html += '<td>' + (s.split_index + 1) + '</td>';
+    html += '<td class="num">' + splitPace(s.average_speed) + '</td>';
+    html += '<td class="num">' + (s.average_heartrate ? Math.round(s.average_heartrate) : '--') + '</td>';
+    html += '<td class="num">' + elevFt(s.elevation_diff) + '</td>';
+    html += '<td class="num">' + (s.pace_zone || '--') + '</td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  return html;
+}
+
+let expandedPlanDetail = null;
+
+async function togglePlanDetail(dayEl, stravaId) {
+  const existing = document.getElementById('plan-detail-panel');
+  if (existing) {
+    const wasThisDay = existing.dataset.stravaId === String(stravaId);
+    existing.remove();
+    if (expandedPlanDetail) expandedPlanDetail.classList.remove('expanded');
+    expandedPlanDetail = null;
+    if (wasThisDay) return;
+  }
+
+  dayEl.classList.add('expanded');
+  expandedPlanDetail = dayEl;
+
+  const weekRow = dayEl.closest('.week-row');
+  const panel = document.createElement('div');
+  panel.id = 'plan-detail-panel';
+  panel.dataset.stravaId = stravaId;
+  panel.className = 'plan-detail';
+  panel.innerHTML = '<p style="color:var(--ink-muted);font-size:12px;">Loading splits...</p>';
+  weekRow.after(panel);
+
+  try {
+    let html = '';
+    const splitsRes = await fetch('/api/activities/' + stravaId + '/splits');
+    if (splitsRes.ok) {
+      const data = await splitsRes.json();
+      html += renderPlanSplitTable(data.splits);
+    } else {
+      html += '<p style="color:var(--ink-muted);font-size:12px;">No split data available.</p>';
+    }
+
+    const fbRes = await fetch('/api/activities/' + stravaId + '/feedback');
+    if (fbRes.ok) {
+      const fb = await fbRes.json();
+      html += '<div class="plan-narrative">' + fb.narrative.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') + '</div>';
+    }
+
+    panel.innerHTML = html;
+  } catch (e) {
+    panel.innerHTML = '<p style="color:var(--accent);">Failed to load details.</p>';
+  }
 }
 
 function renderPlan(data) {
@@ -559,6 +666,12 @@ function renderPlan(data) {
   html += '</div>';
 
   root.innerHTML = html;
+
+  root.querySelectorAll('.day.clickable').forEach(dayEl => {
+    dayEl.addEventListener('click', () => {
+      togglePlanDetail(dayEl, dayEl.dataset.stravaId);
+    });
+  });
 
   const chartWeeks = plan.weeks.map((w, i) => {
     const phaseId = plan.phases.find(p => p.weeks.includes(w.week))?.id || 'unknown';
