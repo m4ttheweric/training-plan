@@ -1,7 +1,7 @@
 import { join, extname } from "path";
 import { getAuthUrl, exchangeCode, stravaPut } from "./strava/client";
 import { syncActivities } from "./strava/sync";
-import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, getTokens, updateActivityName } from "./db";
+import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, getTokens, updateActivityName, getSplitsForActivity, getFeedbackForActivity, upsertFeedback } from "./db";
 import { getPlanStatus, getAvailablePlans } from "./plan";
 
 const PORT = parseInt(process.env.PORT || "8081");
@@ -113,6 +113,37 @@ const server = Bun.serve({
         return json({ ok: true, name });
       } catch (e) {
         return json({ error: String(e) }, 500);
+      }
+    }
+
+    const splitsMatch = path.match(/^\/api\/activities\/(\d+)\/splits$/);
+    if (splitsMatch && req.method === "GET") {
+      const stravaId = Number(splitsMatch[1]);
+      const splits = getSplitsForActivity(stravaId);
+      if (!splits.length) return json({ error: "No splits found" }, 404);
+      return json({ splits });
+    }
+
+    const feedbackMatch = path.match(/^\/api\/activities\/(\d+)\/feedback$/);
+    if (feedbackMatch) {
+      const stravaId = Number(feedbackMatch[1]);
+      if (req.method === "GET") {
+        const feedback = getFeedbackForActivity(stravaId);
+        if (!feedback) return json({ error: "No feedback found" }, 404);
+        return json(feedback);
+      }
+      if (req.method === "POST") {
+        try {
+          const body = await req.json() as {
+            plan_date: string; plan_id: string;
+            prescribed_type: string; prescribed_miles: number | null;
+            analysis_json: string; narrative: string;
+          };
+          upsertFeedback(stravaId, body);
+          return json({ ok: true });
+        } catch (e) {
+          return json({ error: String(e) }, 500);
+        }
       }
     }
 
