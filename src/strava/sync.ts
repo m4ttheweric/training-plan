@@ -1,5 +1,5 @@
 import { stravaGet } from "./client";
-import { upsertActivity, getLastSyncedDate, getActivityCount } from "../db";
+import { upsertActivity, getLastSyncedDate, getActivityCount, insertSplits, getRunsMissingSplits, updateActivityDetail } from "../db";
 import { backfillWeather } from "../weather";
 
 interface StravaActivity {
@@ -27,6 +27,47 @@ interface StravaActivity {
   workout_type?: number;
   start_latlng?: number[];
   map?: { summary_polyline?: string };
+}
+
+interface StravaDetailActivity {
+  splits_standard?: Array<{
+    distance: number;
+    elapsed_time: number;
+    moving_time: number;
+    elevation_difference: number;
+    average_speed: number;
+    average_heartrate: number | null;
+    pace_zone: number;
+  }>;
+  calories?: number;
+  suffer_score?: number;
+  description?: string;
+}
+
+async function backfillSplits() {
+  const missing = getRunsMissingSplits();
+  if (!missing.length) return { updated: 0 };
+
+  let updated = 0;
+  for (const { strava_id } of missing) {
+    try {
+      const detail = await stravaGet<StravaDetailActivity>(`/activities/${strava_id}`);
+      if (detail.splits_standard?.length) {
+        insertSplits(strava_id, detail.splits_standard);
+        updated++;
+      }
+      updateActivityDetail(strava_id, {
+        calories: detail.calories,
+        suffer_score: detail.suffer_score,
+        description: detail.description,
+      });
+    } catch (e) {
+      console.error(`Split fetch failed for activity ${strava_id}:`, e);
+    }
+  }
+
+  console.log(`Splits backfilled for ${updated}/${missing.length} runs`);
+  return { updated, total: missing.length };
 }
 
 export async function syncActivities(opts: { full?: boolean } = {}) {
@@ -64,6 +105,7 @@ export async function syncActivities(opts: { full?: boolean } = {}) {
   }
 
   await backfillWeather();
+  await backfillSplits();
 
   const total = getActivityCount();
   return { fetched, upserted, total };
