@@ -1,0 +1,266 @@
+{
+  "id": "10k-oct-2026",
+  "name": "10K Race Plan",
+  "subtitle": "Jul 6 -- Oct 3, 2026 · 13 weeks · 3 runs/wk → 5 runs/wk → 10K race",
+  "startDate": "2026-07-06",
+  "race": {
+    "name": "10K",
+    "date": "2026-10-03",
+    "distance": 6.2,
+    "targetPace": "~8:30/mi",
+    "targetTime": "52-53 min"
+  },
+
+  "phases": [
+    {
+      "id": "rebuild",
+      "name": "Rebuild",
+      "tag": "3 runs / week",
+      "description": "Re-establish a running base on your recovering soleus. Three runs with strides on Monday and Thursday to start building turnover speed. Keep base pace at 9:30-10:00/mi. Sunday is always rest.",
+      "weeks": [1, 2, 3]
+    },
+    {
+      "id": "recovery-1",
+      "name": "Rebuild",
+      "tag": "Recovery",
+      "type": "recovery",
+      "description": "Same frequency, shorter distances. Let your body absorb the work from the last three weeks.",
+      "weeks": [4]
+    },
+    {
+      "id": "build",
+      "name": "Build",
+      "tag": "4 runs / week",
+      "description": "Add a short post-squat shakeout on Wednesday before bench. Thursday becomes the speed day: hill repeats build power with less impact than flat intervals. Monday keeps strides. Long run grows to 6.5 miles.",
+      "weeks": [5, 6, 7]
+    },
+    {
+      "id": "recovery-2",
+      "name": "Build",
+      "tag": "Recovery",
+      "type": "recovery",
+      "description": "Same frequency, shorter distances. Let your body absorb the work from the last three weeks.",
+      "weeks": [8]
+    },
+    {
+      "id": "peak",
+      "name": "Peak",
+      "tag": "5 runs / week",
+      "description": "Add the 5th run on Saturday morning before deadlift. Thursday shifts from hills to race-pace tempo. Monday keeps strides. Long run peaks at 7.5 miles in week 11.",
+      "weeks": [9, 10, 11]
+    },
+    {
+      "id": "taper",
+      "name": "Taper",
+      "tag": "Race prep",
+      "type": "recovery",
+      "description": "Cut volume 30-40% but keep the same frequency. Short strides keep your legs sharp without accumulating fatigue. Reduce squat/deadlift weight by ~30% this week.",
+      "weeks": [12]
+    },
+    {
+      "id": "race",
+      "name": "Race week",
+      "tag": "10K · Oct 4",
+      "type": "race",
+      "description": "Minimal running. The work is done. Keep moving to stay loose, but nothing that leaves you tired. Skip deadlift... the race replaces it. Target pace: ~8:30/mi (52-53 min).",
+      "weeks": [13]
+    }
+  ],
+
+  "afterPlan": {
+    "name": "After the race",
+    "tag": "Steady state",
+    "description": "Take 3-4 easy days, then resume at the week 9-12 pattern as a repeating cycle: three build weeks, one recovery week. Grow the long run to 8 miles; grow midweek runs by 0.5 mi per cycle. Cap around 22-25 mi/week."
+  },
+
+  "weeks": [
+    {
+      "week": 1,
+      "days": [
+        { "type": "run", "miles": 3, "detail": "+ strides" },
+        { "type": "lift", "label": "Squat" },
+        { "type": "lift", "label": "Bench" },
+        { "type": "run", "miles": 3, "detail": "+ strides" },
+        { "type": "long", "miles": 4 },
+        { "type": "lift", "label": "Dead" },
+        { "type": "rest" }
+      ]
+    },
+    {
+      "week": 2,
+      "days": [
+        { "type": "run", "miles": 3, "detail": "+ strides" },
+        { "type": "lift", "label": "Squat" },
+        { "type": "lift", "label": "Bench" },
+        { "type": "run", "miles": 3, "detail": "+ strides" },
+        { "type": "long", "miles": 5 },
+        { "type": "lift", "label": "Dead" },
+        { "type": "rest" }
+      ]
+    },
+    {
+      "week": 3,
+      "days": [
+        { "type": "run", "miles": 3, "detail": "+ strides" },
+        { "type": "lift", "label": "Squat" },
+        { "type": "lift", "label": "Bench" },
+        { "type": "run", "miles": 3.5, "detail": "+ strides" },
+        { "type": "long", "miles": 5.5 },
+        { "type": "lift", "label": "Dead" },
+        { "type": "rest" }
+      ]
+    },
+    {
+      "week": 4,
+      "recovery": true,
+      "days": [
+        { "type": "run", "miles": 2.5, "detail": "easy" },
+        { "type": "lift", "label": "Squat" },
+        { "type": "lift", "label": "Bench" },
+        { "type": "run", "miles": 3, "detail": "easy" },
+        { "type": "long", "miles": 3.5, "detail": "easy" },
+        { "type": "lift", "label": "Dead" },
+        { "type": "rest" }
+      ]
+    },
+    {
+      "week": 5,
+      "days": [
+        { "type": "run", "miles": 3, "detail": "+ strides" },
+        { "type": "lift", "label": "Squat" },
+        { "type": "run", "miles": 2, "detail": "+ Bench", "newSlot": true },
+        { "type": "run", "miles": 3.5, "detail": "hills" },
+        { "type": "long", "miles": 5.5 },
+        { "type": "lift", "label": "Dead" },
+        { "type": "rest" }
+      ]
+    },
+    {
+      "week": 6,
+      "days": [
+        { "type": "run", "miles": 3, "detail": "+ strides" },
+        { "type": "lift", "label": "Squat" },
+        { "type": "run", "miles": 2, "detail": "+ Bench" },
+        { "type": "run", "miles": 4, "detail": "hills" },
+        { "type": "long", "miles": 6 },
+        { "type": "lift", "label": "Dead" },
+        { "type": "rest" }
+      ]
+    },
+    {
+      "week": 7,
+      "days": [
+        { "type": "run", "miles": 3, "detail": "+ strides" },
+        { "type": "lift", "label": "Squat" },
+        { "type": "run", "miles": 2, "detail": "+ Bench" },
+        { "type": "run", "miles": 4, "detail": "hills" },
+        { "type": "long", "miles": 6.5 },
+        { "type": "lift", "label": "Dead" },
+        { "type": "rest" }
+      ]
+    },
+    {
+      "week": 8,
+      "recovery": true,
+      "days": [
+        { "type": "run", "miles": 2.5, "detail": "easy" },
+        { "type": "lift", "label": "Squat" },
+        { "type": "run", "miles": 2, "detail": "+ Bench" },
+        { "type": "run", "miles": 3, "detail": "easy" },
+        { "type": "long", "miles": 4, "detail": "easy" },
+        { "type": "lift", "label": "Dead" },
+        { "type": "rest" }
+      ]
+    },
+    {
+      "week": 9,
+      "days": [
+        { "type": "run", "miles": 3, "detail": "+ strides" },
+        { "type": "lift", "label": "Squat" },
+        { "type": "run", "miles": 2, "detail": "+ Bench" },
+        { "type": "run", "miles": 4, "detail": "tempo" },
+        { "type": "long", "miles": 7 },
+        { "type": "run", "miles": 2, "detail": "+ Dead", "newSlot": true },
+        { "type": "rest" }
+      ]
+    },
+    {
+      "week": 10,
+      "days": [
+        { "type": "run", "miles": 3, "detail": "+ strides" },
+        { "type": "lift", "label": "Squat" },
+        { "type": "run", "miles": 2, "detail": "+ Bench" },
+        { "type": "run", "miles": 4, "detail": "tempo" },
+        { "type": "long", "miles": 7 },
+        { "type": "run", "miles": 2.5, "detail": "+ Dead" },
+        { "type": "rest" }
+      ]
+    },
+    {
+      "week": 11,
+      "days": [
+        { "type": "run", "miles": 3.5, "detail": "+ strides" },
+        { "type": "lift", "label": "Squat" },
+        { "type": "run", "miles": 2, "detail": "+ Bench" },
+        { "type": "run", "miles": 4, "detail": "tempo" },
+        { "type": "long", "miles": 7.5 },
+        { "type": "run", "miles": 2.5, "detail": "+ Dead" },
+        { "type": "rest" }
+      ]
+    },
+    {
+      "week": 12,
+      "recovery": true,
+      "days": [
+        { "type": "run", "miles": 3, "detail": "easy" },
+        { "type": "lift", "label": "Squat", "detail": "light" },
+        { "type": "run", "miles": 2, "detail": "+ Bench" },
+        { "type": "run", "miles": 3, "detail": "w/ strides" },
+        { "type": "long", "miles": 5, "detail": "easy" },
+        { "type": "run", "miles": 2, "detail": "+ Dead lt" },
+        { "type": "rest" }
+      ]
+    },
+    {
+      "week": 13,
+      "days": [
+        { "type": "run", "miles": 2.5, "detail": "easy" },
+        { "type": "lift", "label": "Squat", "detail": "light" },
+        { "type": "run", "miles": 2, "detail": "strides" },
+        { "type": "run", "miles": 2, "detail": "shake" },
+        { "type": "rest" },
+        { "type": "race", "miles": 6.2 },
+        { "type": "rest" }
+      ]
+    }
+  ],
+
+  "glossary": [
+    { "term": "easy", "definition": "9:30-10:00/mi, conversational pace. You should be able to talk in full sentences." },
+    { "term": "long", "definition": "Slightly slower than easy (9:45-10:15/mi). The distance is the workout, not the speed." },
+    { "term": "+ strides", "definition": "After the run, do 4 x 20-sec smooth accelerations to ~90% speed, with a full walk-back recovery between each." },
+    { "term": "hills", "definition": "Hill repeats: 1 mi warmup, 6-8 x 30-sec hard uphill, jog down to recover, 1 mi cooldown." },
+    { "term": "tempo", "definition": "1 mi easy warmup, 2 mi at race pace (~8:30/mi), 1 mi easy cooldown. \"Comfortably hard.\"" },
+    { "term": "shake", "definition": "Shakeout: a very short, very easy jog just to keep your legs loose. Should feel almost too easy." },
+    { "term": "+ Bench / + Dead", "definition": "Short easy run before that day's lift. The run comes first." },
+    { "term": "Dead / Dead lt", "definition": "Deadlift day. \"lt\" means light: reduce working weight ~30%." },
+    { "term": "light", "definition": "Reduce barbell weight ~30% from normal working sets. Keep the movement, cut the load." },
+    { "term": "recovery week", "definition": "Amber-highlighted weeks. Same frequency, shorter runs. Where adaptation actually happens." }
+  ],
+
+  "rules": [
+    { "label": "Pace", "text": "Every run except the long run: 9:30-10:00/mi. Conversational. If you can't talk in full sentences, slow down. The long run: 9:45-10:15/mi, even slower." },
+    { "label": "Shakeouts", "text": "The 2-mile runs are recovery, not training. They should feel almost pointlessly easy. If your legs feel heavy from yesterday's squats, that's expected... run through it gently." },
+    { "label": "Recovery wks", "text": "Every 4th week, drop volume ~25%. Keep the same frequency but shorten every run. These weeks are where adaptation happens... don't skip them." },
+    { "label": "Soleus", "text": "Add bent-knee calf raises to your squat day (you're already on the smith machine). 3 sets of 15, slow 3-second lowering. Also do a bodyweight set of 20 before every run as part of your warmup." },
+    { "label": "Squat day", "text": "Never run the same day as squat day. Your squat session (barbell squat, machine squat, standing calf raises) is the heaviest leg stimulus in your week. It gets a buffer on both sides. Bench and deadlift pair fine with short runs." },
+    { "label": "Long run", "text": "The Friday long run sits 3 days after squat for maximum leg freshness. Saturday's shakeout before deadlift flushes the long run; deadlift is back/pull dominant so the pairing works. Sunday is always off." },
+    { "label": "Strides", "text": "After Monday and Thursday runs in weeks 1-3: 4x20 seconds at fast-but-relaxed effort with full recovery walk between. Not sprinting -- smooth, quick turnover. These are free speed with almost zero injury risk. Drop them on recovery weeks." },
+    { "label": "Hill repeats", "text": "Thursday in weeks 5-7: find a moderate hill (4-6% grade). 1 mi warmup, 6x30 sec hard uphill, jog down recovery, 1 mi cooldown. Hills build power and teach your body to use less energy at faster speeds, with less joint impact than flat intervals. Grow to 8 reps by week 7." },
+    { "label": "Tempo runs", "text": "Thursday in weeks 9-11: 1 mile easy warmup, 2 miles at ~8:30/mi (10K race pace), 1 mile easy cooldown. This teaches sustained effort. It should feel \"comfortably hard\" -- you can talk in short phrases but not sentences." },
+    { "label": "10K target", "text": "Based on your predicted 5K of 25:07, a realistic 10K goal is ~52-53 minutes (~8:25-8:35/mi). Start conservative: run the first 2 miles at 8:40, settle into 8:30 for miles 3-5, and push the last mile. Don't go out fast." },
+    { "label": "Bail signals", "text": "Sharp pain in the soleus at any point: stop, walk home, drop back one phase for a week. Dull ache that fades within the first mile: fine, continue. Ache that gets worse as you run: stop." }
+  ],
+
+  "callout": "**The hardest part of this plan is running slowly.** Your natural easy pace is ~9:15/mi, which puts you in Zone 3 (148-161 bpm) -- too hard for base building. Truly easy running means Zone 2 (119-147 bpm): it builds your aerobic capacity without accumulating tissue stress. The volume increase only works if the intensity stays low. Speed comes later... after you own the volume."
+}

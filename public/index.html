@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training Plan</title>
+<style>
+  :root {
+    --surface: #f7f6f3;
+    --card: #ffffff;
+    --card-border: rgba(45, 42, 38, 0.08);
+    --ink-primary: #1a1816;
+    --ink-secondary: #5c5650;
+    --ink-muted: #918a82;
+    --grid: #e8e5df;
+    --baseline: #c5c0b8;
+    --accent: #c0522e;
+    --accent-light: rgba(192, 82, 46, 0.08);
+    --accent-mid: rgba(192, 82, 46, 0.15);
+    --blue: #2a6fb5;
+    --blue-light: rgba(42, 111, 181, 0.12);
+    --green-good: #2d7a3a;
+    --green-light: rgba(45, 122, 58, 0.08);
+    --amber-warn: #b5850a;
+    --amber-light: rgba(181, 133, 10, 0.08);
+    --font-display: Charter, Georgia, 'Times New Roman', serif;
+    --font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #141210;
+      --card: #1e1c19;
+      --card-border: rgba(255, 248, 235, 0.06);
+      --ink-primary: #f0ece5;
+      --ink-secondary: #b3aca3;
+      --ink-muted: #7a746c;
+      --grid: #2a2723;
+      --baseline: #3d3933;
+      --accent: #e06b42;
+      --accent-light: rgba(224, 107, 66, 0.1);
+      --accent-mid: rgba(224, 107, 66, 0.18);
+      --blue: #4a9ae0;
+      --blue-light: rgba(74, 154, 224, 0.12);
+      --green-good: #4aad5a;
+      --green-light: rgba(74, 173, 90, 0.1);
+      --amber-warn: #d4a520;
+      --amber-light: rgba(212, 165, 32, 0.1);
+    }
+  }
+  :root[data-theme="light"] {
+    --surface: #f7f6f3; --card: #ffffff; --card-border: rgba(45, 42, 38, 0.08);
+    --ink-primary: #1a1816; --ink-secondary: #5c5650; --ink-muted: #918a82;
+    --grid: #e8e5df; --baseline: #c5c0b8;
+    --accent: #c0522e; --accent-light: rgba(192, 82, 46, 0.08); --accent-mid: rgba(192, 82, 46, 0.15);
+    --blue: #2a6fb5; --blue-light: rgba(42, 111, 181, 0.12);
+    --green-good: #2d7a3a; --green-light: rgba(45, 122, 58, 0.08);
+    --amber-warn: #b5850a; --amber-light: rgba(181, 133, 10, 0.08);
+  }
+  :root[data-theme="dark"] {
+    --surface: #141210; --card: #1e1c19; --card-border: rgba(255, 248, 235, 0.06);
+    --ink-primary: #f0ece5; --ink-secondary: #b3aca3; --ink-muted: #7a746c;
+    --grid: #2a2723; --baseline: #3d3933;
+    --accent: #e06b42; --accent-light: rgba(224, 107, 66, 0.1); --accent-mid: rgba(224, 107, 66, 0.18);
+    --blue: #4a9ae0; --blue-light: rgba(74, 154, 224, 0.12);
+    --green-good: #4aad5a; --green-light: rgba(74, 173, 90, 0.1);
+    --amber-warn: #d4a520; --amber-light: rgba(212, 165, 32, 0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--surface);
+    color: var(--ink-primary);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 860px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  header { margin-bottom: 40px; }
+  header h1 {
+    font-family: var(--font-display);
+    font-size: 26px; font-weight: 400; line-height: 1.2; margin-bottom: 6px;
+  }
+  header .subtitle { font-size: 14px; color: var(--ink-muted); }
+
+  .phase-header {
+    display: flex; align-items: baseline; gap: 12px;
+    margin-top: 36px; margin-bottom: 4px;
+  }
+  .phase-header h2 {
+    font-family: var(--font-display);
+    font-size: 19px; font-weight: 400;
+  }
+  .phase-tag {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 2px 8px; border-radius: 3px; font-weight: 500;
+  }
+  .phase-tag.rebuild { background: var(--amber-light); color: var(--amber-warn); }
+  .phase-tag.build { background: var(--blue-light); color: var(--blue); }
+  .phase-tag.peak { background: var(--green-light); color: var(--green-good); }
+
+  .phase-desc {
+    font-size: 13px; color: var(--ink-secondary); margin-bottom: 16px;
+    max-width: 600px;
+  }
+
+  .week-row {
+    display: grid;
+    grid-template-columns: 68px repeat(7, 1fr) 56px;
+    gap: 0;
+    border-bottom: 1px solid var(--grid);
+    min-height: 52px;
+    align-items: stretch;
+  }
+
+  .week-row.header-row {
+    border-bottom: 1px solid var(--baseline);
+    min-height: 32px;
+  }
+
+  .week-row.recovery { background: var(--amber-light); }
+
+  .wk-label {
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 8px 8px 8px 0;
+    font-size: 12px; font-weight: 600; color: var(--ink-primary);
+  }
+  .wk-date { font-size: 10px; font-weight: 400; color: var(--ink-muted); margin-top: 1px; }
+
+  .day-head {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--ink-muted); font-weight: 500;
+    padding: 6px 2px; gap: 1px;
+  }
+  .day-head .date-num {
+    font-size: 10px; font-weight: 400; letter-spacing: 0;
+    text-transform: none; font-variant-numeric: tabular-nums;
+  }
+
+  .day {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 6px 2px; font-size: 11px; text-align: center;
+    border-left: 1px solid var(--grid);
+    min-width: 0;
+  }
+
+  .day.run .day-type { color: var(--blue); font-weight: 600; }
+  .day.long .day-type { color: var(--accent); font-weight: 600; }
+  .day.lift .day-type { color: var(--ink-secondary); font-weight: 500; }
+  .day.rest .day-type { color: var(--ink-muted); }
+  .day.new-slot { position: relative; }
+  .day.new-slot::after {
+    content: '';
+    position: absolute; top: 3px; right: 3px;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--green-good);
+  }
+
+  .day.race {
+    background: var(--accent-light);
+    border-left: 2px solid var(--accent);
+  }
+  .day.race .day-type { color: var(--accent); font-weight: 700; }
+  .day.race .day-dist { color: var(--accent); }
+
+  .day.tempo .day-dist { font-style: italic; }
+
+  .day .status-icon {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; line-height: 1; font-weight: 700;
+  }
+  .day { position: relative; }
+  .status-completed .status-icon { background: var(--green-good); color: #fff; }
+  .status-partial .status-icon { background: var(--amber-warn); color: #fff; }
+  .status-missed .status-icon { background: #c44; color: #fff; }
+  .day .actual-dist {
+    font-size: 9px; color: var(--green-good); font-variant-numeric: tabular-nums;
+    margin-top: 1px;
+  }
+  .status-partial .actual-dist { color: var(--amber-warn); }
+  .status-missed .actual-dist { display: none; }
+
+  .weather-badge {
+    font-size: 9px; color: var(--ink-muted); font-variant-numeric: tabular-nums;
+    margin-top: 1px; cursor: default;
+  }
+  .weather-hot { color: var(--accent); font-weight: 600; }
+  .weather-cold { color: var(--blue); font-weight: 600; }
+
+  .week-progress {
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 1px;
+    font-size: 10px; font-variant-numeric: tabular-nums;
+    padding: 6px 4px 6px 8px;
+    border-left: 1px solid var(--baseline);
+  }
+  .week-progress .prog-bar {
+    width: 100%; height: 3px; border-radius: 2px; background: var(--grid);
+    overflow: hidden;
+  }
+  .week-progress .prog-fill {
+    height: 100%; border-radius: 2px; background: var(--green-good);
+    transition: width 0.3s;
+  }
+  .week-progress .prog-label { color: var(--ink-muted); font-size: 9px; }
+
+  .day-dist {
+    font-size: 10px; color: var(--ink-muted); margin-top: 1px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wk-total {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: var(--ink-primary);
+    font-variant-numeric: tabular-nums;
+    padding: 6px 4px 6px 8px;
+    border-left: 1px solid var(--baseline);
+  }
+
+  .total-head {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-muted); font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+    padding: 6px 4px 6px 8px;
+    border-left: 1px solid var(--baseline);
+  }
+
+  .legend {
+    display: flex; gap: 18px; margin-bottom: 12px; flex-wrap: wrap;
+    font-size: 12px; color: var(--ink-muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot {
+    width: 8px; height: 8px; border-radius: 2px;
+  }
+  .legend-dot.run { background: var(--blue); }
+  .legend-dot.long { background: var(--accent); }
+  .legend-dot.lift { background: var(--ink-muted); }
+  .legend-dot.rest { background: var(--grid); }
+  .legend-dot.new {
+    background: var(--green-good); width: 6px; height: 6px; border-radius: 50%;
+  }
+
+  .glossary-ref {
+    text-decoration: underline dotted var(--ink-muted);
+    text-underline-offset: 2px;
+    cursor: help;
+    position: relative;
+  }
+  .glossary-ref .glossary-tip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 400;
+    font-style: normal;
+    color: var(--ink-secondary);
+    white-space: normal;
+    width: max-content;
+    max-width: 220px;
+    line-height: 1.45;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    z-index: 20;
+    pointer-events: none;
+    text-decoration: none;
+    text-align: left;
+  }
+  .glossary-ref:hover .glossary-tip { display: block; }
+
+  .rules {
+    margin-top: 36px;
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 8px; padding: 24px;
+  }
+  .rules h3 {
+    font-family: var(--font-display);
+    font-size: 17px; font-weight: 400; margin-bottom: 14px;
+  }
+  .rule {
+    display: grid; grid-template-columns: 100px 1fr; gap: 8px;
+    margin-bottom: 10px; font-size: 13px;
+  }
+  .rule-label {
+    font-weight: 600; color: var(--ink-primary);
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    padding-top: 1px;
+  }
+  .rule-text { color: var(--ink-secondary); line-height: 1.5; }
+
+  .callout {
+    background: var(--accent-light); border-left: 3px solid var(--accent);
+    padding: 14px 18px; border-radius: 0 6px 6px 0;
+    margin-top: 20px; font-size: 13px; line-height: 1.55; color: var(--ink-secondary);
+  }
+  .callout strong { color: var(--ink-primary); }
+
+  .mileage-chart {
+    margin-top: 36px;
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 8px; padding: 24px;
+  }
+  .mileage-chart h3 {
+    font-family: var(--font-display);
+    font-size: 17px; font-weight: 400; margin-bottom: 16px;
+  }
+  .chart-wrap { position: relative; }
+  .chart-wrap canvas { width: 100%; display: block; }
+  .tooltip {
+    position: absolute; pointer-events: none;
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 6px; padding: 8px 12px; font-size: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    opacity: 0; transition: opacity 0.15s; z-index: 10;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .tooltip.visible { opacity: 1; }
+
+  @media (max-width: 640px) {
+    .page { padding: 28px 12px 60px; }
+    .week-row { grid-template-columns: 52px repeat(7, 1fr) 44px; }
+    .day { font-size: 10px; padding: 4px 1px; }
+    .day-dist { font-size: 9px; }
+    .wk-label { font-size: 11px; }
+    .wk-total { font-size: 11px; }
+    .rule { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <nav style="display:flex;gap:24px;margin-bottom:24px;font-size:13px;font-family:system-ui,sans-serif">
+    <a href="/" style="color:var(--ink-primary);font-weight:600;text-decoration:none">Plan</a>
+    <a href="/activities.html" style="color:var(--ink-muted);text-decoration:none">Activities</a>
+    <a href="/analysis.html" style="color:var(--ink-muted);text-decoration:none">Analysis</a>
+  </nav>
+  <div id="plan-root"></div>
+</div>
+
+<script>
+const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function esc(s) { const el = document.createElement('span'); el.textContent = s; return el.innerHTML; }
+
+function formatDate(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  return MONTH_SHORT[d.getMonth()] + ' ' + d.getDate();
+}
+
+function phaseTagClass(phase) {
+  if (['rebuild','recovery-1'].includes(phase.id)) return 'rebuild';
+  if (['build','recovery-2'].includes(phase.id)) return 'build';
+  if (['peak'].includes(phase.id)) return 'peak';
+  if (phase.type === 'race') return '';
+  if (phase.type === 'recovery') return 'rebuild';
+  return 'peak';
+}
+
+function phaseTagStyle(phase) {
+  if (phase.type === 'race') return 'style="background:var(--accent-light);color:var(--accent);"';
+  return '';
+}
+
+function dayClasses(day) {
+  const cls = ['day'];
+  if (day.type === 'run') cls.push('run');
+  if (day.type === 'long') cls.push('long');
+  if (day.type === 'lift') cls.push('lift');
+  if (day.type === 'rest') cls.push('rest');
+  if (day.type === 'race') cls.push('race');
+  if (day.detail && (day.detail.includes('strides') || day.detail.includes('hills') || day.detail.includes('tempo') || day.detail.includes('w/ strides'))) cls.push('tempo');
+  if (day.newSlot) cls.push('new-slot');
+  return cls.join(' ');
+}
+
+function dayLabel(day) {
+  if (day.type === 'rest') return 'rest';
+  if (day.type === 'race') return day.label || '10K';
+  if (day.type === 'lift') return day.label || 'Lift';
+  if (day.miles) return day.miles + ' mi';
+  return day.label || '';
+}
+
+function dayDetail(day) {
+  if (day.type === 'rest') return '';
+  if (day.type === 'race') return day.miles ? day.miles + ' mi' : '';
+  if (day.type === 'long' && !day.detail) return 'long';
+  return day.detail || '';
+}
+
+function weekMileage(week) {
+  return week.days.reduce((t, d) => t + (d.miles || 0), 0);
+}
+
+function buildGlossaryMap(glossary) {
+  const map = new Map();
+  for (const g of glossary) {
+    const parts = g.term.split(' / ');
+    for (const p of parts) {
+      map.set(p.toLowerCase(), g.definition);
+      if (p.startsWith('+ ')) {
+        const bare = p.slice(2);
+        map.set(bare.toLowerCase(), g.definition);
+        map.set(('w/ ' + bare).toLowerCase(), g.definition);
+      }
+    }
+  }
+  return map;
+}
+
+function annotate(text, glossaryMap) {
+  const lower = text.toLowerCase();
+  let def = glossaryMap.get(lower);
+  if (!def && lower.startsWith('+ ')) {
+    def = glossaryMap.get(lower.slice(2));
+  }
+  if (def) {
+    return '<span class="glossary-ref">' + esc(text) + '<span class="glossary-tip">' + esc(def) + '</span></span>';
+  }
+  return esc(text);
+}
+
+function renderHeaderRow(weekStart) {
+  const monday = new Date(weekStart + 'T12:00:00');
+  let html = '<div class="week-row header-row"><div class="wk-label"></div>';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(d.getDate() + i);
+    html += '<div class="day-head">' + DAY_NAMES[i] + '<span class="date-num">' + MONTH_SHORT[d.getMonth()] + ' ' + d.getDate() + '</span></div>';
+  }
+  html += '<div class="total-head">Total</div></div>';
+  return html;
+}
+
+function renderWeekRow(week, weekStart, statusWeek, glossaryMap) {
+  const recovery = week.recovery ? ' recovery' : '';
+  let html = '<div class="week-row' + recovery + '">';
+  html += '<div class="wk-label">Wk ' + week.week + ' <span class="wk-date">' + formatDate(weekStart) + '</span></div>';
+
+  for (let di = 0; di < week.days.length; di++) {
+    const day = week.days[di];
+    const sd = statusWeek ? statusWeek.days[di] : null;
+    let cls = dayClasses(day);
+    if (sd && sd.status !== 'rest' && sd.status !== 'upcoming') cls += ' status-' + sd.status;
+
+    html += '<div class="' + cls + '">';
+    html += '<span class="day-type">' + annotate(dayLabel(day), glossaryMap) + '</span>';
+    const det = dayDetail(day);
+    if (det) html += '<span class="day-dist">' + annotate(det, glossaryMap) + '</span>';
+
+    if (sd && sd.status !== 'rest' && sd.status !== 'upcoming') {
+      let icon = '';
+      if (sd.status === 'completed') icon = '✓';
+      else if (sd.status === 'partial') icon = '½';
+      else if (sd.status === 'missed') icon = '✗';
+      html += '<span class="status-icon">' + icon + '</span>';
+      if (sd.actual && sd.actual.distance && (sd.status === 'completed' || sd.status === 'partial')) {
+        html += '<span class="actual-dist">' + (sd.actual.distance / 1609.34).toFixed(1) + ' mi</span>';
+      }
+      if (sd.actual && sd.actual.weather && sd.actual.weather.feels != null) {
+        const w = sd.actual.weather;
+        const feels = Math.round(w.feels);
+        const heatCls = feels >= 85 ? ' weather-hot' : feels <= 32 ? ' weather-cold' : '';
+        html += '<span class="weather-badge' + heatCls + '" title="' + Math.round(w.temp) + '°F, feels ' + feels + '°F, ' + w.humidity + '% humidity, ' + Math.round(w.wind) + ' mph wind">' + feels + '°</span>';
+      }
+    }
+    html += '</div>';
+  }
+
+  const total = weekMileage(week);
+  if (statusWeek && statusWeek.summary.plannedMiles > 0 && statusWeek.days.some(d => d.status !== 'upcoming' && d.status !== 'rest')) {
+    const s = statusWeek.summary;
+    const pct = Math.min(100, Math.round((s.actualMiles / s.plannedMiles) * 100));
+    html += '<div style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1px;font-size:10px;font-variant-numeric:tabular-nums;padding:6px 4px 6px 8px;border-left:1px solid var(--baseline);">';
+    html += '<span>' + s.actualMiles.toFixed(1) + '/' + s.plannedMiles + '</span>';
+    html += '<div class="prog-bar" style="width:100%;height:3px;border-radius:2px;background:var(--grid);overflow:hidden;"><div class="prog-fill" style="width:' + pct + '%;height:100%;border-radius:2px;background:var(--green-good);"></div></div>';
+    html += '<span class="prog-label" style="color:var(--ink-muted);font-size:9px;">' + s.completedRuns + '/' + s.plannedRuns + ' runs</span>';
+    html += '</div>';
+  } else {
+    html += '<div class="wk-total">' + (Math.round(total * 10) / 10) + '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function weekStartDate(planStart, weekIndex) {
+  const d = new Date(planStart + 'T12:00:00');
+  d.setDate(d.getDate() + weekIndex * 7);
+  return d.toISOString().slice(0, 10);
+}
+
+function renderPlan(data) {
+  const plan = data.plan;
+  const statusWeeks = data.weeks;
+  const root = document.getElementById('plan-root');
+
+  let html = '<header><h1>' + esc(plan.name) + '</h1>';
+  html += '<p class="subtitle">' + esc(plan.subtitle) + '</p></header>';
+
+  html += '<div class="legend">';
+  html += '<div class="legend-item"><div class="legend-dot run"></div> Easy run</div>';
+  html += '<div class="legend-item"><div class="legend-dot long"></div> Long run</div>';
+  html += '<div class="legend-item"><div class="legend-dot lift"></div> Lift</div>';
+  html += '<div class="legend-item"><div class="legend-dot rest"></div> Rest</div>';
+  html += '<div class="legend-item"><div class="legend-dot new"></div> Newly added run</div>';
+  html += '<div class="legend-item"><div class="legend-dot" style="background:var(--accent);"></div> Race / race pace</div>';
+  html += '</div>';
+
+  const glossaryMap = buildGlossaryMap(plan.glossary);
+
+  for (const phase of plan.phases) {
+    const tagCls = phaseTagClass(phase);
+    html += '<div class="phase-header"><h2>' + esc(phase.name) + '</h2>';
+    html += '<span class="phase-tag ' + tagCls + '" ' + phaseTagStyle(phase) + '>' + esc(phase.tag) + '</span></div>';
+    html += '<p class="phase-desc">' + esc(phase.description) + '</p>';
+
+    const firstWeekStart = weekStartDate(plan.startDate, phase.weeks[0] - 1);
+    html += renderHeaderRow(firstWeekStart);
+
+    for (const wn of phase.weeks) {
+      const wi = wn - 1;
+      const ws = weekStartDate(plan.startDate, wi);
+      const sw = statusWeeks.find(w => w.week === wn);
+      html += renderWeekRow(plan.weeks[wi], ws, sw, glossaryMap);
+    }
+  }
+
+  if (plan.afterPlan) {
+    html += '<div class="phase-header"><h2>' + esc(plan.afterPlan.name) + '</h2>';
+    html += '<span class="phase-tag peak">' + esc(plan.afterPlan.tag) + '</span></div>';
+    html += '<p class="phase-desc">' + esc(plan.afterPlan.description) + '</p>';
+  }
+
+  html += '<div class="mileage-chart"><h3>Weekly mileage progression</h3>';
+  html += '<div class="chart-wrap"><canvas id="progChart" height="180"></canvas><div class="tooltip" id="progTip"></div></div></div>';
+
+  html += '<div class="rules"><h3>Ground rules</h3>';
+  for (const r of plan.rules) {
+    html += '<div class="rule"><div class="rule-label">' + esc(r.label) + '</div><div class="rule-text">' + esc(r.text) + '</div></div>';
+  }
+  if (plan.callout) {
+    const calloutHtml = plan.callout.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html += '<div class="callout">' + calloutHtml + '</div>';
+  }
+  html += '</div>';
+
+  root.innerHTML = html;
+
+  const chartWeeks = plan.weeks.map((w, i) => {
+    const phaseId = plan.phases.find(p => p.weeks.includes(w.week))?.id || 'unknown';
+    let phase = phaseId;
+    if (phase.startsWith('recovery')) phase = 'recovery';
+    return { wk: w.week, mi: weekMileage(w), phase };
+  });
+  initChart(chartWeeks);
+}
+
+function initChart(weeks) {
+  function draw() {
+    const canvas = document.getElementById('progChart');
+    if (!canvas) return;
+    const tip = document.getElementById('progTip');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const W = rect.width;
+    const H = 180;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const s = getComputedStyle(document.documentElement);
+    const colors = {
+      grid: s.getPropertyValue('--grid').trim(),
+      baseline: s.getPropertyValue('--baseline').trim(),
+      muted: s.getPropertyValue('--ink-muted').trim(),
+      primary: s.getPropertyValue('--ink-primary').trim(),
+      accent: s.getPropertyValue('--accent').trim(),
+      blue: s.getPropertyValue('--blue').trim(),
+      amber: s.getPropertyValue('--amber-warn').trim(),
+      green: s.getPropertyValue('--green-good').trim(),
+    };
+    const phaseColor = { rebuild: colors.amber, build: colors.blue, peak: colors.green, recovery: colors.muted, race: colors.accent, taper: colors.muted };
+
+    const pad = { top: 20, right: 16, bottom: 28, left: 32 };
+    const cw = W - pad.left - pad.right;
+    const ch = H - pad.top - pad.bottom;
+    const maxMi = Math.max(22, ...weeks.map(w => w.mi));
+
+    ctx.clearRect(0, 0, W, H);
+    [0, 5, 10, 15, 20].forEach(v => {
+      const y = pad.top + ch - (v / maxMi) * ch;
+      ctx.strokeStyle = colors.grid; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+      ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = colors.muted; ctx.fillText(v + '', pad.left - 6, y);
+    });
+
+    ctx.strokeStyle = colors.baseline; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.left, pad.top + ch); ctx.lineTo(W - pad.right, pad.top + ch); ctx.stroke();
+
+    const barW = Math.max(8, (cw / weeks.length) - 8);
+    const positions = [];
+
+    weeks.forEach((w, i) => {
+      const x = pad.left + (i + 0.5) * (cw / weeks.length) - barW / 2;
+      const barH = (w.mi / maxMi) * ch;
+      const y = pad.top + ch - barH;
+      const r = Math.min(3, barW / 2);
+
+      ctx.beginPath();
+      if (barH > r) {
+        ctx.moveTo(x, y + barH); ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r); ctx.arcTo(x + barW, y, x + barW, y + r, r);
+        ctx.lineTo(x + barW, y + barH);
+      }
+      ctx.closePath();
+      ctx.fillStyle = phaseColor[w.phase] || colors.muted;
+      ctx.fill();
+
+      ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = colors.muted; ctx.fillText(w.wk + '', x + barW / 2, H - 8);
+
+      positions.push({ x, y, w: barW, h: barH, wk: w.wk, mi: w.mi, phase: w.phase });
+    });
+
+    canvas.onmousemove = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const mx = e.clientX - r.left, my = e.clientY - r.top;
+      const hit = positions.find(p => mx >= p.x && mx <= p.x + p.w && my >= p.y && my <= p.y + p.h);
+      if (hit) {
+        tip.innerHTML = '<div style="color:' + colors.muted + ';font-size:11px">Week ' + hit.wk + ' &middot; ' + hit.phase + '</div><div style="color:' + colors.primary + ';font-weight:500">' + hit.mi + ' mi</div>';
+        tip.classList.add('visible');
+        tip.style.left = Math.min(hit.x + hit.w / 2 - 40, W - 120) + 'px';
+        tip.style.top = (hit.y - 48) + 'px';
+      } else { tip.classList.remove('visible'); }
+    };
+    canvas.onmouseleave = () => tip.classList.remove('visible');
+  }
+
+  draw();
+  window.addEventListener('resize', draw);
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+}
+
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const asOf = params.get('as_of') || '';
+  const planId = params.get('plan') || '';
+  let url = '/api/plan/status';
+  const qs = [];
+  if (planId) qs.push('plan=' + encodeURIComponent(planId));
+  if (asOf) qs.push('as_of=' + encodeURIComponent(asOf));
+  if (qs.length) url += '?' + qs.join('&');
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    renderPlan(data);
+  } catch (e) {
+    document.getElementById('plan-root').innerHTML = '<p style="color:var(--accent);">Failed to load plan data.</p>';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
