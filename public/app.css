@@ -10,6 +10,7 @@
 
   --accent:   #e8542a;
   --accent-d: #c0431c;
+  --accent-halo: rgba(232,84,42,.14);
 
   --run-bg:   #eaf0f7;  --run-fg:  #1e5c94;
   --long-bg:  #fdeee8;  --long-fg: #c0431c;
@@ -47,6 +48,7 @@
 
     --accent:   #e8542a;   /* unchanged: the block keeps its punch */
     --accent-d: #ff6a3d;   /* accent as text on dark */
+    --accent-halo: rgba(232,84,42,.14);
 
     --run-bg:  rgba(74,154,224,.14);  --run-fg:  #7fb6e8;
     --long-bg: rgba(232,84,42,.16);   --long-fg: #ff8a63;
@@ -65,7 +67,7 @@
 :root[data-theme="dark"] {
   --ink: #f2efea; --ink2: #b8b2aa; --ink3: #7a746c;
   --hair: #262421; --wash: #1a1815; --paper: #0f0f0e;
-  --accent: #e8542a; --accent-d: #ff6a3d;
+  --accent: #e8542a; --accent-d: #ff6a3d; --accent-halo: rgba(232,84,42,.14);
   --run-bg: rgba(74,154,224,.14);  --run-fg:  #7fb6e8;
   --long-bg: rgba(232,84,42,.16);  --long-fg: #ff8a63;
   --lift-bg: rgba(255,248,235,.06); --lift-fg: #9a948c;
@@ -214,7 +216,7 @@ body {
 .fdot.long  { background: var(--accent);  border-color: var(--accent); }
 .fdot.lift  { background: var(--ink3); border-color: var(--ink3); border-radius: 3px; }
 .fdot.miss  { background: var(--bad); border-color: var(--bad); }
-.fdot.today { background: var(--paper); border-color: var(--accent); box-shadow: 0 0 0 4px rgba(232,84,42,.14); }
+.fdot.today { background: var(--paper); border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-halo); }
 .fwhen { font: 700 9px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); }
 .fwhen.now { color: var(--accent); }
 .fhead { font: 800 19px var(--sans); letter-spacing: -.028em; margin: 3px 0 4px; font-variant-numeric: tabular-nums; }

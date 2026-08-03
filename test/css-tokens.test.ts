@@ -56,9 +56,10 @@ describe("app.css tokens", () => {
     expect(pick(dark)).toBe(pick(light));
   });
 
-  test("no hardcoded hex outside the token blocks", () => {
+  test("no hardcoded hex or rgb/rgba outside the token blocks", () => {
     // Hardcoded colours in component rules are what broke dark mode twice.
     // #fff is allowed: it is text on the always-saturated accent block.
+    // rgba/rgb(255,255,255,...) is allowed for the same reason.
     const body = css
       .replace(blockAfter(":root {"), "")
       .replace(blockAfter("@media (prefers-color-scheme: dark)"), "")
@@ -67,6 +68,11 @@ describe("app.css tokens", () => {
       .map(m => m[0].toLowerCase())
       .filter(h => h !== "#fff" && h !== "#ffffff");
     expect(hexes).toEqual([]);
+
+    // Also check for bare rgba/rgb calls with hardcoded colors (not white).
+    const rgbas = [...body.matchAll(/rgba?\([^)]*\)/g)]
+      .filter(m => !m[0].match(/rgba?\(\s*255\s*,\s*255\s*,\s*255\s*[,)]/));
+    expect(rgbas).toEqual([]);
   });
 
   test("no em or en dashes", () => {
