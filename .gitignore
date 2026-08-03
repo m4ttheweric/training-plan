@@ -1,3 +1,6 @@
 node_modules/
 data/
 .env
+.superpowers/brainstorm/
+.superpowers/sdd/*/
+.local-dev/
