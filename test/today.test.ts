@@ -13,6 +13,11 @@ const status: any = {
       week: 4, weekStart: "2026-07-27", phase: "recovery-1", recovery: true,
       summary: { plannedRuns: 3, completedRuns: 3, plannedMiles: 9, actualMiles: 9.667 },
       days: [
+        { date: "2026-07-30", dayOfWeek: 3, plan: { type: "run", miles: 3, label: "3 mi", detail: "easy" },
+          status: "completed",
+          actual: { strava_id: 19537874102, distance: 5006.1, moving_time: 1781, average_speed: 2.811,
+                    average_heartrate: 141.4, name: "Half Moon Bay", type: "Run", date: "2026-07-30",
+                    weather: { temp: 59.9, feels: 59.8, humidity: 86, wind: 4.5, code: 3 } } },
         { date: "2026-07-31", dayOfWeek: 4, plan: { type: "long", miles: 3.5, label: "3.5 mi", detail: "easy" },
           status: "completed", shiftedFrom: "2026-08-01",
           actual: { strava_id: 19559217595, distance: 6524.4, moving_time: 2326, average_speed: 2.805,
@@ -35,9 +40,16 @@ const status: any = {
 };
 
 const lookup = {
-  splits: (id: number) => id === 19559217595
-    ? [{ split_index: 0, distance: 1609.8, elapsed_time: 564, moving_time: 558, elevation_diff: -0.1, average_speed: 2.88, average_heartrate: 134.3, pace_zone: 3 }]
-    : [],
+  splits: (id: number) => {
+    if (id === 19559217595) {
+      return [{ split_index: 0, distance: 1609.8, elapsed_time: 564, moving_time: 558, elevation_diff: -0.1, average_speed: 2.88, average_heartrate: 134.3, pace_zone: 3 }];
+    }
+    if (id === 19537874102) {
+      return [{ split_index: 0, distance: 1609.3, elapsed_time: 590, moving_time: 590, elevation_diff: 1.2, average_speed: 2.73, average_heartrate: 140.1, pace_zone: 2 }];
+    }
+    return [];
+  },
+  // 19537874102 has splits but no feedback yet, exercising the degradation path.
   feedback: (id: number) => id === 19559217595
     ? { narrative: "Friday's long run, done Saturday.\n\n### Per mile\n\n- **Mile 1** ... 9:19", analysis_json: '{"deltas":{"hr_vs_baseline":-1.2}}' }
     : null,
@@ -68,11 +80,23 @@ describe("buildToday", () => {
   });
 
   test("finds the most recent completed run, following a shift", () => {
+    // The Jul 31 slot holds an Aug 1 activity, and there is a genuine Jul 30
+    // run competing for "most recent". Sorting on actual date must pick the
+    // Aug 1 run; a reversed comparator would return the Jul 30 run instead.
     expect(view.lastRun.strava_id).toBe(19559217595);
+    expect(view.lastRun.strava_id).not.toBe(19537874102);
     expect(view.lastRun.date).toBe("2026-08-01");
     expect(view.lastRun.shiftedFrom).toBe("2026-07-31");
     expect(view.lastRun.splits).toHaveLength(1);
     expect(view.lastRun.narrative).toContain("Friday's long run");
+  });
+
+  test("excludes a run whose actual date is still in the future, even when its slot is not", () => {
+    // The Aug 1 activity sits in the Jul 31 slot. Filtering on the slot date
+    // would wrongly include it on Jul 31; filtering on the actual date excludes it.
+    const asOfJul31 = buildToday(status, "2026-07-31", lookup);
+    expect(asOfJul31.lastRun.strava_id).toBe(19537874102);
+    expect(asOfJul31.lastRun.date).toBe("2026-07-30");
   });
 
   test("returns the trailing three weeks with the current one flagged", () => {
