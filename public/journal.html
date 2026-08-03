@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Journal</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="shell" id="root"></div>
+<script type="module">
+import { esc, fmtMiles, fmtPaceFromSpeed, fmtDuration, fmtDayLabel } from "/lib.js";
+
+const NAV = '<nav class="nav">' +
+  '<a href="/">Today</a>' +
+  '<a href="/journal.html" class="on">Journal</a>' +
+  '<a href="/plan.html">Plan</a></nav>';
+
+function runItem(it) {
+  const a = it.activity;
+  const dot = it.kind === "long" ? "long" : "run";
+  let meta = "";
+  if (it.shiftedFrom) meta += "Ran " + esc(fmtDayLabel(it.date)) + " for " + esc(fmtDayLabel(it.shiftedFrom)) + "'s slot. ";
+  if (a.weather && a.weather.feels != null) meta += Math.round(a.weather.feels) + "&deg;F.";
+  return '<a class="fitem" href="/entry.html?id=' + a.strava_id + '">' +
+    '<span class="fdot ' + dot + '"></span>' +
+    '<div class="fwhen">' + esc(fmtDayLabel(it.date)) + ' &middot; ' + esc(a.name) + '</div>' +
+    '<div class="fhead">' + fmtMiles(a.distance) + '<span class="u">mi</span> &middot; ' +
+      fmtPaceFromSpeed(a.average_speed) + '<span class="u">/mi</span>' +
+      (a.average_heartrate ? ' &middot; ' + Math.round(a.average_heartrate) + '<span class="u">bpm</span>' : '') +
+    '</div>' +
+    (meta ? '<div class="fmeta">' + meta + '</div>' : '') +
+    '</a>';
+}
+
+function render(items) {
+  let h = NAV + '<div class="pad">';
+  let open = false;
+
+  for (const it of items) {
+    if (it.kind === "week-rule") {
+      if (open) { h += '</div>'; open = false; }
+      h += '<div class="wkrule"><i></i><span>Week ' + it.week +
+        (it.recovery ? " &middot; recovery" : "") + ' &middot; ' +
+        it.actualMiles.toFixed(1) + '/' + it.plannedMiles + ' mi &middot; ' +
+        it.completedRuns + '/' + it.plannedRuns + ' runs</span><i></i></div>';
+      continue;
+    }
+    if (!open) { h += '<div class="feed">'; open = true; }
+
+    if (it.kind === "run" || it.kind === "long") { h += runItem(it); continue; }
+
+    if (it.kind === "lift") {
+      h += '<span class="fitem"><span class="fdot lift"></span>' +
+        '<div class="fwhen">' + esc(fmtDayLabel(it.date)) + '</div>' +
+        '<div class="fhead lift">' + esc(it.label) + ' &middot; ' + fmtDuration(it.activity.moving_time) + '</div></span>';
+      continue;
+    }
+    if (it.kind === "missed") {
+      h += '<span class="fitem"><span class="fdot miss"></span>' +
+        '<div class="fwhen">' + esc(fmtDayLabel(it.date)) + '</div>' +
+        '<div class="fhead miss">' + esc(it.label) + ' ... missed</div></span>';
+      continue;
+    }
+    if (it.kind === "today") {
+      h += '<span class="fitem"><span class="fdot today"></span>' +
+        '<div class="fwhen now">Today &middot; ' + esc(fmtDayLabel(it.date)) + '</div>' +
+        '<div class="fhead" style="color:var(--accent)">' + esc(it.label) + '</div>' +
+        (it.detail ? '<div class="fmeta">' + esc(it.detail) + '</div>' : '') + '</span>';
+      continue;
+    }
+    if (it.kind === "future") {
+      h += '<span class="fitem future"><span class="fdot"></span>' +
+        '<div class="fwhen">' + esc(fmtDayLabel(it.date)) + '</div>' +
+        '<div class="fhead lift">' + esc(it.label) + (it.detail ? " " + esc(it.detail) : "") + '</div></span>';
+    }
+  }
+  if (open) h += '</div>';
+  h += '</div>';
+  document.getElementById("root").innerHTML = h;
+}
+
+fetch("/api/journal").then(r => r.json()).then(render).catch(e => {
+  document.getElementById("root").innerHTML = NAV +
+    '<div class="pad"><div class="body">Could not load: ' + esc(e.message) + '</div></div>';
+});
+</script>
+</body>
+</html>
