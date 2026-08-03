@@ -10,7 +10,7 @@ const status: any = {
       // (the some()/every() distinction can't be told apart on one item
       // alone -- week 4 below is what proves that), and gives the
       // ordering tests a second week-rule to order against.
-      week: 3, weekStart: "2026-07-20", phase: "recovery-1", recovery: false,
+      week: 3, weekStart: "2026-07-20", phase: "base", recovery: false,
       summary: { plannedRuns: 2, completedRuns: 2, plannedMiles: 6, actualMiles: 6.2 },
       days: [
         { date: "2026-07-22", dayOfWeek: 2, plan: { type: "lift", label: "Row" }, status: "completed",
@@ -112,6 +112,15 @@ describe("buildJournal", () => {
     const before = items.slice(0, ruleIdx);
     expect(before.some((i: any) => i.date === "2026-07-22")).toBe(false);
     expect(before.some((i: any) => i.kind === "week-rule")).toBe(false);
+    // The rule closes its own week, so the item immediately before it must
+    // be week 4's own oldest day (the synthetic 2026-07-28 future item),
+    // not an item from an older week and not the rule itself. This pins
+    // "after the last item of the week" -- without it, hoisting the rule
+    // push above the week's own day items would still pass every other
+    // assertion here, since rule items carry no `.date` field.
+    const prev: any = items[ruleIdx - 1];
+    expect(prev.kind).not.toBe("week-rule");
+    expect(prev.date).toBe("2026-07-28");
   });
 
   test("orders multiple week rules newest week first", () => {
