@@ -3,6 +3,7 @@ import { getAuthUrl, exchangeCode, stravaPut } from "./strava/client";
 import { syncActivities } from "./strava/sync";
 import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, getTokens, updateActivityName, getSplitsForActivity, getFeedbackForActivity, upsertFeedback } from "./db";
 import { getPlanStatus, getAvailablePlans } from "./plan";
+import { getToday } from "./today";
 
 const PORT = parseInt(process.env.PORT || "8081");
 const PUBLIC_DIR = join(import.meta.dir, "../public");
@@ -43,6 +44,7 @@ let syncing = false;
 
 const server = Bun.serve({
   port: PORT,
+  idleTimeout: 255,
   async fetch(req) {
     const url = new URL(req.url);
     const path = url.pathname;
@@ -79,17 +81,13 @@ const server = Bun.serve({
     if (path === "/api/sync" && req.method === "POST") {
       if (syncing) return json({ error: "Sync already in progress" }, 409);
       syncing = true;
-      try {
-        const body = req.headers.get("content-type")?.includes("json")
-          ? await req.json() as { full?: boolean }
-          : {};
-        const result = await syncActivities({ full: (body as { full?: boolean }).full });
-        return json(result);
-      } catch (e) {
-        return json({ error: String(e) }, 500);
-      } finally {
-        syncing = false;
-      }
+      const body = req.headers.get("content-type")?.includes("json")
+        ? await req.json() as { full?: boolean }
+        : {};
+      syncActivities({ full: (body as { full?: boolean }).full })
+        .catch((e) => console.error("Sync failed:", e))
+        .finally(() => { syncing = false; });
+      return json({ started: true });
     }
 
     if (path === "/api/activities") {
@@ -145,6 +143,11 @@ const server = Bun.serve({
           return json({ error: String(e) }, 500);
         }
       }
+    }
+
+    if (path === "/api/today") {
+      const asOf = url.searchParams.get("as_of") ?? undefined;
+      return json(getToday(asOf));
     }
 
     if (path === "/api/plans") {
