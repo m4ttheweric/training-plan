@@ -186,6 +186,19 @@
   .status-partial .actual-dist { color: var(--amber-warn); }
   .status-missed .actual-dist { display: none; }
 
+  .status-today {
+    outline: 1px dashed var(--accent);
+    outline-offset: -1px;
+    background: var(--accent-light);
+  }
+  .day .shifted-badge {
+    font-size: 9px; color: var(--ink-muted); margin-top: 1px; cursor: default;
+  }
+  .day .extra-dist {
+    font-size: 9px; color: var(--blue); font-variant-numeric: tabular-nums;
+    margin-top: 1px; cursor: default;
+  }
+
   .weather-badge {
     font-size: 9px; color: var(--ink-muted); font-variant-numeric: tabular-nums;
     margin-top: 1px; cursor: default;
@@ -478,13 +491,16 @@ function renderWeekRow(week, weekStart, statusWeek, glossaryMap) {
   for (let di = 0; di < week.days.length; di++) {
     const day = week.days[di];
     const sd = statusWeek ? statusWeek.days[di] : null;
+    const scored = sd && sd.status !== 'rest' && sd.status !== 'upcoming';
     let cls = dayClasses(day);
-    if (sd && sd.status !== 'rest' && sd.status !== 'upcoming') cls += ' status-' + sd.status;
+    if (scored) cls += ' status-' + sd.status;
 
     let extraAttr = '';
-    if (sd && sd.actual && sd.actual.strava_id && sd.actual.type === 'Run') {
+    const clickTarget = (sd && sd.actual && sd.actual.type === 'Run' && sd.actual.strava_id) ? sd.actual
+      : (sd && sd.extra && sd.extra.length ? sd.extra[0] : null);
+    if (clickTarget && clickTarget.strava_id) {
       cls += ' clickable';
-      extraAttr = ' data-strava-id="' + sd.actual.strava_id + '"';
+      extraAttr = ' data-strava-id="' + clickTarget.strava_id + '"';
     }
 
     html += '<div class="' + cls + '"' + extraAttr + '>';
@@ -492,14 +508,20 @@ function renderWeekRow(week, weekStart, statusWeek, glossaryMap) {
     const det = dayDetail(day);
     if (det) html += '<span class="day-dist">' + annotate(det, glossaryMap) + '</span>';
 
-    if (sd && sd.status !== 'rest' && sd.status !== 'upcoming') {
+    if (scored) {
       let icon = '';
       if (sd.status === 'completed') icon = '✓';
       else if (sd.status === 'partial') icon = '½';
       else if (sd.status === 'missed') icon = '✗';
-      html += '<span class="status-icon">' + icon + '</span>';
+      if (icon) html += '<span class="status-icon">' + icon + '</span>';
       if (sd.actual && sd.actual.distance && (sd.status === 'completed' || sd.status === 'partial')) {
         html += '<span class="actual-dist">' + (sd.actual.distance / 1609.34).toFixed(1) + ' mi</span>';
+      }
+      if (sd.shiftedFrom) {
+        const from = new Date(sd.shiftedFrom + 'T12:00:00');
+        html += '<span class="shifted-badge" title="Done ' + DAY_NAMES[(from.getDay() + 6) % 7] + ' ' +
+          MONTH_SHORT[from.getMonth()] + ' ' + from.getDate() + ', counted here">↦ ' +
+          DAY_NAMES[(from.getDay() + 6) % 7] + '</span>';
       }
       if (sd.actual && sd.actual.weather && sd.actual.weather.feels != null) {
         const w = sd.actual.weather;
@@ -507,6 +529,13 @@ function renderWeekRow(week, weekStart, statusWeek, glossaryMap) {
         const heatCls = feels >= 85 ? ' weather-hot' : feels <= 32 ? ' weather-cold' : '';
         html += '<span class="weather-badge' + heatCls + '" title="' + Math.round(w.temp) + '°F, feels ' + feels + '°F, ' + w.humidity + '% humidity, ' + Math.round(w.wind) + ' mph wind">' + feels + '°</span>';
       }
+    }
+
+    // Runs that happened here but belong to no slot. Still real miles.
+    if (sd && sd.extra && sd.extra.length) {
+      const mi = sd.extra.reduce((s, e) => s + (e.distance || 0), 0) / 1609.34;
+      const names = sd.extra.map(e => e.name).join(', ');
+      html += '<span class="extra-dist" title="Unplanned: ' + names + '">+' + mi.toFixed(1) + ' mi</span>';
     }
     html += '</div>';
   }

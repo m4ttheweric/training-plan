@@ -32,21 +32,28 @@ interface PlanFile {
   callout: string;
 }
 
+interface ActualInfo {
+  strava_id?: number;
+  distance?: number;
+  moving_time?: number;
+  average_speed?: number;
+  average_heartrate?: number;
+  name?: string;
+  type?: string;
+  date?: string;
+  weather?: { temp: number; feels: number; humidity: number; wind: number; code: number } | null;
+}
+
 interface PlanDayStatus {
   date: string;
   dayOfWeek: number;
   plan: { type: string; miles?: number; label: string; detail?: string; newSlot?: boolean };
-  status: "completed" | "partial" | "missed" | "upcoming" | "rest";
-  actual?: {
-    strava_id?: number;
-    distance?: number;
-    moving_time?: number;
-    average_speed?: number;
-    average_heartrate?: number;
-    name?: string;
-    type?: string;
-    weather?: { temp: number; feels: number; humidity: number; wind: number; code: number } | null;
-  };
+  status: "completed" | "partial" | "missed" | "upcoming" | "today" | "rest";
+  actual?: ActualInfo;
+  /** Set when the activity filling this slot happened on a different date. */
+  shiftedFrom?: string;
+  /** Activities on this calendar date that no plan slot claimed. */
+  extra?: ActualInfo[];
 }
 
 interface PlanWeekStatus {
@@ -94,6 +101,10 @@ function weekStartDate(planStart: string, weekIndex: number): string {
   const d = new Date(planStart + "T12:00:00");
   d.setDate(d.getDate() + weekIndex * 7);
   return d.toISOString().slice(0, 10);
+}
+
+function daysBetween(a: string, b: string): number {
+  return Math.round((Date.parse(a + "T12:00:00Z") - Date.parse(b + "T12:00:00Z")) / 86400000);
 }
 
 function dayLabel(day: PlanDay): string {
@@ -144,11 +155,88 @@ export function getPlanStatus(planId?: string, today?: string): PlanStatusRespon
     return { temp: a.weather_temp, feels: a.weather_feels!, humidity: a.weather_humidity!, wind: a.weather_wind!, code: a.weather_code! };
   }
 
-  const actByDate = new Map<string, typeof activities>();
+  type Activity = typeof activities[number];
+
+  function actualOf(a: Activity): ActualInfo {
+    return {
+      strava_id: a.strava_id, distance: a.distance, moving_time: a.moving_time,
+      average_speed: a.average_speed, average_heartrate: a.average_heartrate,
+      name: a.name, type: a.type, date: a.start_date_local.slice(0, 10),
+      weather: weatherOf(a),
+    };
+  }
+
+  function shiftedFrom(a: Activity, slotDate: string): { shiftedFrom?: string } {
+    const actualDate = a.start_date_local.slice(0, 10);
+    return actualDate === slotDate ? {} : { shiftedFrom: actualDate };
+  }
+
+  const actByDate = new Map<string, Activity[]>();
   for (const a of activities) {
     const d = a.start_date_local.slice(0, 10);
     if (!actByDate.has(d)) actByDate.set(d, []);
     actByDate.get(d)!.push(a);
+  }
+
+  // --- Slot assignment ---------------------------------------------------
+  // Workouts move. A Friday long run done Saturday morning is still the
+  // Friday long run, so match on intent (nearest slot that wants this kind
+  // of activity) rather than strictly on calendar date.
+
+  const SHIFT_WINDOW_DAYS = 1;
+
+  function slotWants(day: PlanDay, activityType: string): boolean {
+    if (day.type === "lift") return activityType === "WeightTraining";
+    if (day.type === "run" || day.type === "long" || day.type === "race") return activityType === "Run";
+    return false;
+  }
+
+  const slots = weekStarts.flatMap((ws, wi) =>
+    plan.weeks[wi].days.map((day, di) => ({ key: `${wi}:${di}`, date: dateStr(ws, di), day }))
+  );
+
+  const assigned = new Map<string, Activity[]>();
+  const claimed = new Set<number>();
+
+  // Pass 1: exact date. Same-day always wins over any shifted candidate.
+  for (const slot of slots) {
+    const acts = (actByDate.get(slot.date) ?? []).filter(a => slotWants(slot.day, a.type));
+    if (!acts.length) continue;
+    assigned.set(slot.key, acts);
+    for (const a of acts) claimed.add(a.strava_id);
+  }
+
+  // Pass 2: pull leftovers into an adjacent empty slot that wants them.
+  // Prefer the nearest slot, and on a tie prefer the earlier one, since a
+  // workout is far more often a makeup than done ahead of schedule.
+  for (const a of activities) {
+    if (claimed.has(a.strava_id)) continue;
+    const aDate = a.start_date_local.slice(0, 10);
+    let best: typeof slots[number] | null = null;
+    let bestScore = Infinity;
+    for (const slot of slots) {
+      if (assigned.has(slot.key)) continue;
+      if (slot.date > now) continue;
+      if (!slotWants(slot.day, a.type)) continue;
+      const diff = daysBetween(slot.date, aDate);
+      if (diff === 0 || Math.abs(diff) > SHIFT_WINDOW_DAYS) continue;
+      const score = Math.abs(diff) * 10 + (diff < 0 ? 0 : 1);
+      if (score < bestScore) { bestScore = score; best = slot; }
+    }
+    if (best) {
+      assigned.set(best.key, [a]);
+      claimed.add(a.strava_id);
+    }
+  }
+
+  // Anything still unclaimed is real work that no slot wanted. It stays
+  // visible on its own date and its mileage still counts toward the week.
+  const unclaimedByDate = new Map<string, Activity[]>();
+  for (const a of activities) {
+    if (claimed.has(a.strava_id) || a.type !== "Run") continue;
+    const d = a.start_date_local.slice(0, 10);
+    if (!unclaimedByDate.has(d)) unclaimedByDate.set(d, []);
+    unclaimedByDate.get(d)!.push(a);
   }
 
   const weeks: PlanWeekStatus[] = plan.weeks.map((pw, wi) => {
@@ -157,37 +245,47 @@ export function getPlanStatus(planId?: string, today?: string): PlanStatusRespon
 
     const days: PlanDayStatus[] = pw.days.map((day, di) => {
       const date = dateStr(ws, di);
-      const dayActs = actByDate.get(date) ?? [];
+      const slotActs = assigned.get(`${wi}:${di}`) ?? [];
       const label = dayLabel(day);
 
+      // Runs no slot claimed still count as miles run, whatever day they landed on.
+      const strays = unclaimedByDate.get(date) ?? [];
+      const strayDistance = strays.reduce((s, a) => s + (a.distance ?? 0), 0);
+      if (strayDistance > 0) actualMiles += strayDistance / 1609.34;
+      const extra = strays.length ? { extra: strays.map(actualOf) } : {};
+
       if (day.type === "rest") {
-        return { date, dayOfWeek: di, plan: { type: day.type, label, detail: day.detail, newSlot: day.newSlot }, status: "rest" as const };
+        return { date, dayOfWeek: di, plan: { type: day.type, label, detail: day.detail, newSlot: day.newSlot }, status: "rest" as const, ...extra };
       }
 
       const planInfo = { type: day.type, miles: day.miles, label, detail: day.detail, newSlot: day.newSlot };
 
       if (date > now) {
         if (day.miles) { plannedRuns++; plannedMiles += day.miles; }
-        return { date, dayOfWeek: di, plan: planInfo, status: "upcoming" as const };
+        return { date, dayOfWeek: di, plan: planInfo, status: "upcoming" as const, ...extra };
       }
 
+      // A slot only counts as missed once its day is actually over.
+      const unmetStatus = date === now ? "today" as const : "missed" as const;
+
       if (day.type === "lift") {
-        const liftAct = dayActs.find(a => a.type === "WeightTraining");
-        if (liftAct) {
-          return {
-            date, dayOfWeek: di, plan: planInfo, status: "completed" as const,
-            actual: { strava_id: liftAct.strava_id, moving_time: liftAct.moving_time, average_heartrate: liftAct.average_heartrate, name: liftAct.name, type: liftAct.type, weather: weatherOf(liftAct) },
-          };
+        const liftAct = slotActs.find(a => a.type === "WeightTraining");
+        if (!liftAct) {
+          return { date, dayOfWeek: di, plan: planInfo, status: unmetStatus, ...extra };
         }
-        return { date, dayOfWeek: di, plan: planInfo, status: "missed" as const };
+        const shifted = shiftedFrom(liftAct, date);
+        return {
+          date, dayOfWeek: di, plan: planInfo, status: "completed" as const,
+          actual: actualOf(liftAct), ...shifted, ...extra,
+        };
       }
 
       if (day.miles) { plannedRuns++; plannedMiles += day.miles; }
       const targetMeters = (day.miles ?? 0) * 1609.34;
-      const runActs = dayActs.filter(a => a.type === "Run");
+      const runActs = slotActs.filter(a => a.type === "Run");
 
       if (!runActs.length) {
-        return { date, dayOfWeek: di, plan: planInfo, status: "missed" as const };
+        return { date, dayOfWeek: di, plan: planInfo, status: unmetStatus, ...extra };
       }
 
       const totalDistance = runActs.reduce((s, a) => s + (a.distance ?? 0), 0);
@@ -200,12 +298,8 @@ export function getPlanStatus(planId?: string, today?: string): PlanStatusRespon
 
       return {
         date, dayOfWeek: di, plan: planInfo, status,
-        actual: {
-          strava_id: bestRun.strava_id,
-          distance: totalDistance, moving_time: bestRun.moving_time,
-          average_speed: bestRun.average_speed, average_heartrate: bestRun.average_heartrate,
-          name: bestRun.name, type: bestRun.type, weather: weatherOf(bestRun),
-        },
+        actual: { ...actualOf(bestRun), distance: totalDistance },
+        ...shiftedFrom(bestRun, date), ...extra,
       };
     });
 
