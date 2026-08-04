@@ -27,6 +27,11 @@
   --sun-head: #c9c4be;
   /* edge shadow cast by the pinned week column onto scrolling cells */
   --pin-shadow: rgba(0,0,0,.07);
+  /* Desktop only: the page behind the shell, and the shell's own edge. On a
+     phone the shell IS the page, so these are unused below 768px. */
+  --canvas:       #e9e6e1;
+  --shell-edge:   rgba(0,0,0,.10);
+  --shell-shadow: rgba(0,0,0,.07);
 
   --sans: system-ui, -apple-system, 'Helvetica Neue', sans-serif;
   --pad: 18px;
@@ -62,6 +67,9 @@
     --hatch-fg: #5f5a53;
     --sun-head: #4a463f;
     --pin-shadow: rgba(0,0,0,.55);
+    --canvas:       #050506;
+    --shell-edge:   rgba(255,248,235,.10);
+    --shell-shadow: rgba(0,0,0,.55);
   }
 }
 :root[data-theme="dark"] {
@@ -75,6 +83,7 @@
   --hatch-a: #171512; --hatch-b: #1e1c18; --hatch-fg: #5f5a53;
   --sun-head: #4a463f;
   --pin-shadow: rgba(0,0,0,.55);
+  --canvas: #050506; --shell-edge: rgba(255,248,235,.10); --shell-shadow: rgba(0,0,0,.55);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -270,6 +279,18 @@ body {
 /* ---------- desktop ---------- */
 @media (min-width: 768px) {
   :root { --pad: 34px; }
+  /* On a phone the shell is the whole viewport and needs no edge. On a desktop
+     it is a 720px column on a wide screen, so without a surface it dissolves
+     into the browser chrome. Recess the page and lift the shell off it. */
+  body { background: var(--canvas); }
+  .shell {
+    background: var(--paper);
+    border: 1px solid var(--shell-edge);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px var(--shell-shadow), 0 14px 36px var(--shell-shadow);
+    margin: 28px auto 56px;
+    overflow: hidden;   /* clips .gscroll's full-bleed negative margin to the rounded edge */
+  }
   .h1 { font-size: 44px; }
   .h1.sm { font-size: 34px; }
   .big b { font-size: 46px; }
