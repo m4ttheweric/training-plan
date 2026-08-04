@@ -14,6 +14,11 @@
  */
 
 export const ASSURED_ACCOUNT_PATTERN = /assured\.claims$/i;
+/* A positive allowlist, not a blocklist. Rejecting only known-bad patterns
+   loses to the next invisible character or unicode lookalike; requiring a
+   conservative email shape rejects NUL, zero-width space, soft hyphen and
+   friends in one move, and subsumes the "must contain @" check. */
+export const ACCOUNT_PATTERN = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
 export const DEFAULT_ACCOUNT = "goodwin.matthew.eric@gmail.com";
 export const ANALYZE_TIMEOUT_MS = 5 * 60 * 1000;
 export const MAX_NOTE_LENGTH = 2000;
@@ -21,7 +26,7 @@ export const MAX_NOTE_LENGTH = 2000;
 function assertPersonalAccount(account: string): string {
   const a = account.trim();
   if (!a) throw new Error("No Claude account configured for analysis");
-  if (!a.includes("@"))
+  if (!ACCOUNT_PATTERN.test(a))
     throw new Error(`Account must be pinned by email, not a slot number: ${a}`);
   if (ASSURED_ACCOUNT_PATTERN.test(a))
     throw new Error(`Refusing to run analysis under the work account: ${a}`);

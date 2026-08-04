@@ -60,6 +60,29 @@ describe("account pinning", () => {
     expect(cmd[0]).toBe("cswap");
     expect(cmd[1]).toBe("run");
   });
+
+  test("rejects the work account with a trailing NUL byte", () => {
+    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "matthew.goodwin@assured.claims " })).toThrow();
+  });
+
+  test("rejects the work account with a trailing zero width space", () => {
+    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "matthew.goodwin@assured.claims​" })).toThrow();
+  });
+
+  test("rejects the work account with a trailing soft hyphen", () => {
+    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "matthew.goodwin@assured.claims­" })).toThrow();
+  });
+
+  test("buildAnalyzeCommand rejects a work account with invisible trailing characters", () => {
+    expect(() => buildAnalyzeCommand({
+      account: "matthew.goodwin@assured.claims​", date: "2026-08-03", note: null,
+    })).toThrow();
+  });
+
+  test("still accepts a normal personal address", () => {
+    expect(resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "goodwin.matthew.eric@gmail.com" }))
+      .toBe("goodwin.matthew.eric@gmail.com");
+  });
 });
 
 describe("prompt shaping", () => {
