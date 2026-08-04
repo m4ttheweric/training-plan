@@ -35,15 +35,21 @@ function splitRows(splits) {
 function deltaCells(an) {
   if (!an || !an.deltas) return "";
   const d = an.deltas, cells = [];
-  if (d.pace_vs_baseline_s_per_mi != null)
-    cells.push(['<b class="good">' + d.pace_vs_baseline_s_per_mi + 's</b>', "/mi vs easy baseline"]);
-  if (d.hr_vs_baseline != null)
-    cells.push(['<b class="good">' + d.hr_vs_baseline + '</b>',
-      "bpm vs " + (an.baseline && an.baseline.avg_hr != null ? an.baseline.avg_hr : "baseline")]);
-  if (d.feels_temp_vs_baseline_f != null)
-    cells.push(['<b>' + d.feels_temp_vs_baseline_f + '&deg;</b>', "feels vs baseline"]);
-  if (an.cadence_spm != null)
-    cells.push(['<b>' + an.cadence_spm + '</b>', "cadence"]);
+  const pace = num(d.pace_vs_baseline_s_per_mi);
+  if (pace != null)
+    cells.push(['<b class="good">' + pace + 's</b>', "/mi vs easy baseline"]);
+  const hrDelta = num(d.hr_vs_baseline);
+  if (hrDelta != null) {
+    const baselineHr = num(an.baseline && an.baseline.avg_hr);
+    cells.push(['<b class="good">' + hrDelta + '</b>',
+      "bpm vs " + (baselineHr != null ? baselineHr : "baseline")]);
+  }
+  const feels = num(d.feels_temp_vs_baseline_f);
+  if (feels != null)
+    cells.push(['<b>' + feels + '&deg;</b>', "feels vs baseline"]);
+  const cadence = num(an.cadence_spm);
+  if (cadence != null)
+    cells.push(['<b>' + cadence + '</b>', "cadence"]);
   if (!cells.length) return "";
   return '<div class="sec-h">vs baseline</div><div class="deltas">' +
     cells.map(c => '<div class="dcell">' + c[0] + '<span>' + c[1] + '</span></div>').join("") + '</div>';
@@ -56,7 +62,7 @@ async function load() {
     document.getElementById("root").innerHTML = NAV + '<div class="pad"><div class="body">Activity not found.</div></div>';
     return;
   }
-  const splits = await fetch("/api/activities/" + id + "/splits").then(r => r.json()).then(j => j.splits || []).catch(() => []);
+  const splits = await fetch("/api/activities/" + id + "/splits").then(r => r.ok ? r.json() : { splits: [] }).then(j => j.splits || []).catch(() => []);
   const fb = await fetch("/api/activities/" + id + "/feedback").then(r => r.ok ? r.json() : null).catch(() => null);
   const an = fb && fb.analysis_json ? safeParse(fb.analysis_json) : null;
 
@@ -73,16 +79,30 @@ async function load() {
   h += '</div></div>';
 
   h += '<div class="pad">';
-  if (splits.length) h += '<div class="sec-h">Per mile</div>' + splitRows(splits);
-  h += deltaCells(an);
-  if (fb && fb.narrative) h += '<div class="body" style="margin-top:15px">' + renderMarkdown(fb.narrative) + '</div>';
-  else if (!splits.length) h += '<div class="body">No analysis for this activity yet.</div>';
+  /* Decide the "no analysis" fallback by whether any content section actually
+     rendered, not by splits.length alone -- a feedback row can carry deltas
+     with an empty narrative on a run with no splits, and the fallback must
+     not appear underneath real content in that case. */
+  let body = "";
+  if (splits.length) body += '<div class="sec-h">Per mile</div>' + splitRows(splits);
+  body += deltaCells(an);
+  if (fb && fb.narrative) body += '<div class="body" style="margin-top:15px">' + renderMarkdown(fb.narrative) + '</div>';
+  if (!body) body = '<div class="body">No analysis for this activity yet.</div>';
+  h += body;
   h += '</div>';
 
   document.getElementById("root").innerHTML = h;
 }
 
 function safeParse(s) { try { return JSON.parse(s); } catch { return null; } }
+
+/* analysis_json is written by an API route that does no runtime validation, so
+   never trust these values to be numbers. Coerce, and drop the cell if it is
+   not a finite number. */
+function num(v) {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 
 load().catch(e => {
   document.getElementById("root").innerHTML = NAV +
