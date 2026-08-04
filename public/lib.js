@@ -68,6 +68,16 @@ export function fmtWeekday(iso) {
   return DAYS[parts(iso).dow];
 }
 
+/* The first real paragraph of a feedback narrative: skips leading headings
+   and blank lines. Shared by Today's "one paragraph of reading text" and the
+   entry page's lede -- each wraps the result in its own class
+   (`.body` vs `.lede`), so this returns raw markdown text, not HTML. */
+export function firstParagraph(narrative) {
+  if (!narrative) return "";
+  const first = String(narrative).split(/\n\s*\n/).find(p => p.trim() && !p.trim().startsWith("#"));
+  return first ? first.trim() : "";
+}
+
 /* Deliberately small markdown subset: headings, bold, unordered lists,
    paragraphs. Tables are not supported because tabular content comes from
    the splits endpoint and analysis_json, never from prose. */

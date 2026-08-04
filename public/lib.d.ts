@@ -8,3 +8,4 @@ export function fmtDuration(seconds: number): string;
 export function fmtDayLabel(iso: string): string;
 export function fmtWeekday(iso: string): string;
 export function renderMarkdown(md: string): string;
+export function firstParagraph(narrative: string): string;

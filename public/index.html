@@ -9,7 +9,7 @@
 <body>
 <div class="shell" id="root"></div>
 <script type="module">
-import { esc, fmtMiles, fmtPaceFromSpeed, fmtDayLabel, renderMarkdown } from "/lib.js";
+import { esc, fmtMiles, fmtPaceFromSpeed, fmtDayLabel, renderMarkdown, firstParagraph } from "/lib.js";
 
 const NAV = '<nav class="nav">' +
   '<a href="/" class="on">Today</a>' +
@@ -33,11 +33,11 @@ function splitRows(splits) {
   }).join("");
 }
 
-/* The lede is the narrative's first paragraph. The full analysis lives on the
-   entry page; Today shows only the headline finding. */
+/* The lede is the narrative's first paragraph (extraction shared with the
+   entry page via lib.js). The full analysis lives on the entry page; Today
+   shows only the headline finding. */
 function ledeOf(narrative) {
-  if (!narrative) return "";
-  const first = narrative.split(/\n\s*\n/).find(p => p.trim() && !p.trim().startsWith("#"));
+  const first = firstParagraph(narrative);
   return first ? '<div class="body" style="margin-top:15px">' + renderMarkdown(first) + '</div>' : "";
 }
 

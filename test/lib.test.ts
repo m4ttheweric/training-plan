@@ -1,7 +1,7 @@
 import { expect, test, describe } from "bun:test";
 import {
   esc, fmtMiles, fmtPaceFromSpeed, fmtDuration,
-  fmtDayLabel, fmtWeekday, renderMarkdown, localDate,
+  fmtDayLabel, fmtWeekday, renderMarkdown, localDate, firstParagraph,
 } from "../public/lib.js";
 
 /* Run a one-line script under an explicit TZ in a subprocess. localDate's
@@ -108,5 +108,30 @@ describe("renderMarkdown", () => {
 
   test("empty input yields empty output", () => {
     expect(renderMarkdown("")).toBe("");
+  });
+});
+
+describe("firstParagraph", () => {
+  test("skips a leading heading and returns the first real paragraph", () => {
+    const md = "## Aug 1 (Sat)\n\nPrescribed: long run, 3.5 mi easy.\n\n### Per mile\n\n- Mile 1";
+    expect(firstParagraph(md)).toBe("Prescribed: long run, 3.5 mi easy.");
+  });
+
+  test("returns the whole first paragraph when there is no heading", () => {
+    expect(firstParagraph("first\n\nsecond")).toBe("first");
+  });
+
+  test("trims surrounding whitespace", () => {
+    expect(firstParagraph("\n\n  padded text  \n\nmore")).toBe("padded text");
+  });
+
+  test("returns empty string when nothing but headings", () => {
+    expect(firstParagraph("## only\n\n### headings")).toBe("");
+  });
+
+  test("returns empty string for missing or empty narrative", () => {
+    expect(firstParagraph("")).toBe("");
+    expect(firstParagraph(null as unknown as string)).toBe("");
+    expect(firstParagraph(undefined as unknown as string)).toBe("");
   });
 });

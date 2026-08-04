@@ -9,7 +9,7 @@
 <body>
 <div class="shell" id="root"></div>
 <script type="module">
-import { esc, fmtMiles, fmtPaceFromSpeed, fmtDayLabel, renderMarkdown } from "/lib.js";
+import { esc, fmtMiles, fmtPaceFromSpeed, fmtDayLabel, renderMarkdown, firstParagraph } from "/lib.js";
 
 const NAV = '<nav class="nav">' +
   '<a href="/">Today</a>' +
@@ -28,6 +28,24 @@ function splitRows(splits) {
       '<span class="pc">' + fmtPaceFromSpeed(s.average_speed) + '</span>' +
       '<span class="hr">' + (s.average_heartrate ? Math.round(s.average_heartrate) : "--") + '</span></div>';
   }).join("");
+}
+
+/* The lede is the narrative's first paragraph, extraction shared with Today
+   via lib.js. Today wraps it in `.body`; the entry page wraps it in `.lede`,
+   the opening sentence directly under the block. */
+function ledeOf(narrative) {
+  const first = firstParagraph(narrative);
+  return first ? '<div class="lede">' + renderMarkdown(first) + '</div>' : "";
+}
+
+/* The single most important finding, pulled out for visual emphasis after
+   the per-mile rows. key_findings entries are short factual statements, not
+   prose, so this escapes plain text rather than running it through markdown. */
+function pullQuote(an) {
+  if (!an || !Array.isArray(an.key_findings)) return "";
+  const finding = an.key_findings[0];
+  if (typeof finding !== "string" || !finding.trim()) return "";
+  return '<div class="pull">' + esc(finding.trim()) + '</div>';
 }
 
 /* Only render cells the feedback actually carries. Sections with no data are
@@ -84,7 +102,9 @@ async function load() {
      with an empty narrative on a run with no splits, and the fallback must
      not appear underneath real content in that case. */
   let body = "";
+  body += ledeOf(fb && fb.narrative);
   if (splits.length) body += '<div class="sec-h">Per mile</div>' + splitRows(splits);
+  body += pullQuote(an);
   body += deltaCells(an);
   if (fb && fb.narrative) body += '<div class="body" style="margin-top:15px">' + renderMarkdown(fb.narrative) + '</div>';
   if (!body) body = '<div class="body">No analysis for this activity yet.</div>';
