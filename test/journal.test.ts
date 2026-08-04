@@ -145,4 +145,29 @@ describe("buildJournal", () => {
   test("an empty plan yields an empty list", () => {
     expect(buildJournal({ plan: { phases: [] }, weeks: [] }, "2026-08-03")).toEqual([]);
   });
+
+  test("a rest day emits no 'today' item at all, not a rest placeholder", () => {
+    // journal.html's scroll-to-today (Change 3) relies on this: on a rest
+    // day there is nothing dated today in the feed to scroll to, so the
+    // client must fall back to the most recent past entry instead.
+    const restToday: any = {
+      plan: { id: "10k-oct-2026", name: "10K Race Plan", phases: [], race: null },
+      weeks: [
+        {
+          week: 5, weekStart: "2026-08-03", phase: "build", recovery: false,
+          summary: { plannedRuns: 4, completedRuns: 0, plannedMiles: 14, actualMiles: 0 },
+          days: [
+            { date: "2026-08-02", dayOfWeek: 6, plan: { type: "run", miles: 3, label: "3 mi" }, status: "missed" },
+            { date: "2026-08-03", dayOfWeek: 0, plan: { type: "rest", label: "rest" }, status: "rest" },
+            { date: "2026-08-04", dayOfWeek: 1, plan: { type: "lift", label: "Squat" }, status: "upcoming" },
+          ],
+        },
+      ],
+    };
+    const items = buildJournal(restToday, "2026-08-03");
+    expect(items.some((i: any) => i.kind === "today")).toBe(false);
+    expect(items.some((i: any) => i.date === "2026-08-03")).toBe(false);
+    const kinds = items.map((i: any) => i.kind);
+    expect(kinds).toEqual(["future", "missed", "week-rule"]);
+  });
 });
