@@ -1,4 +1,5 @@
 import { getPlanStatus } from "./plan";
+// Shared with the browser on purpose: client and server must agree on "today".
 import { localDate } from "../public/lib.js";
 
 /* One flat, newest-first stream. Future days sit above today, greyed by the

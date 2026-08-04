@@ -1,3 +1,5 @@
+// Hand-synced with lib.js; nothing enforces that automatically, so only
+// `tsc --noEmit` will catch it if these signatures drift out of step.
 export function localDate(d?: Date): string;
 export function esc(s: unknown): string;
 export function fmtMiles(meters: number): string;

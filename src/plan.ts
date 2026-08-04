@@ -1,6 +1,7 @@
 import { join } from "path";
 import { readdirSync, readFileSync } from "fs";
 import { getActivities } from "./db";
+// Shared with the browser on purpose: client and server must agree on "today".
 import { localDate } from "../public/lib.js";
 
 const PLANS_DIR = join(import.meta.dir, "../plans");

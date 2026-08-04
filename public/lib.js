@@ -1,5 +1,12 @@
-/* Pure helpers shared by every page. No DOM access, so they are testable
-   under `bun test` without a browser. */
+/* Pure helpers shared by every page.
+ *
+ * This file is served verbatim to browsers AND imported directly by the
+ * server (src/plan.ts, src/today.ts, src/journal.ts import localDate from
+ * here). There is no bundler and no transform step, so it must stay free of
+ * DOM and Node access: anything that touches `document`, `window`, `fs` or
+ * `process` breaks the server the moment it is imported. Adding an export
+ * is safe; changing an existing signature is not, because three server
+ * modules and public/lib.d.ts depend on them. */
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];

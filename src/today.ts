@@ -1,5 +1,6 @@
 import { getPlanStatus } from "./plan";
 import { getSplitsForActivity, getFeedbackForActivity } from "./db";
+// Shared with the browser on purpose: client and server must agree on "today".
 import { localDate } from "../public/lib.js";
 
 export interface TodayLookup {
