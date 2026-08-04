@@ -17,13 +17,13 @@ const NAV = '<nav class="nav">' +
   '<a href="/journal.html" class="on">Journal</a>' +
   '<a href="/plan.html">Plan</a></nav>';
 
-function runItem(it, isTarget) {
+function runItem(it) {
   const a = it.activity;
   const dot = it.kind === "long" ? "long" : "run";
   let meta = "";
   if (it.shiftedFrom) meta += "Ran " + esc(fmtDayLabel(it.date)) + " for " + esc(fmtDayLabel(it.shiftedFrom)) + "'s slot. ";
   if (a.weather && a.weather.feels != null) meta += Math.round(a.weather.feels) + "&deg;F.";
-  return '<a class="fitem"' + (isTarget ? ' id="j-today"' : '') + ' href="/entry.html?id=' + a.strava_id + '">' +
+  return '<a class="fitem" href="/entry.html?id=' + a.strava_id + '">' +
     '<span class="fdot ' + dot + '"></span>' +
     '<div class="fwhen">' + esc(fmtDayLabel(it.date)) + ' &middot; ' + esc(a.name) + '</div>' +
     '<div class="fhead">' + fmtMiles(a.distance) + '<span class="u">mi</span> &middot; ' +
@@ -62,25 +62,11 @@ function syncHeader(status) {
   return h;
 }
 
-/* The item to land the viewport on: normally the "today" entry, but a rest
-   day emits no "today" item at all (see buildJournal in src/journal.ts),
-   so this falls back to the first item that isn't still in the future --
-   the most recent past entry, since the feed is already newest-first.
-   A week-rule can never be that first item: a week only earns a rule once
-   it has a real result, and that result always precedes its own week's
-   rule in the feed. */
-function scrollTargetIndex(items) {
-  return items.findIndex(it => it.kind !== "future" && it.kind !== "week-rule");
-}
-
 function feedHtml(items) {
-  const targetIdx = scrollTargetIndex(items);
   let h = '<div class="pad">';
   let open = false;
 
-  items.forEach((it, idx) => {
-    const idAttr = idx === targetIdx ? ' id="j-today"' : '';
-
+  items.forEach((it) => {
     if (it.kind === "week-rule") {
       if (open) { h += '</div>'; open = false; }
       h += '<div class="wkrule"><i></i><span>Week ' + it.week +
@@ -91,31 +77,25 @@ function feedHtml(items) {
     }
     if (!open) { h += '<div class="feed">'; open = true; }
 
-    if (it.kind === "run" || it.kind === "long") { h += runItem(it, idx === targetIdx); return; }
+    if (it.kind === "run" || it.kind === "long") { h += runItem(it); return; }
 
     if (it.kind === "lift") {
-      h += '<span class="fitem"' + idAttr + '><span class="fdot lift"></span>' +
+      h += '<span class="fitem"><span class="fdot lift"></span>' +
         '<div class="fwhen">' + esc(fmtDayLabel(it.date)) + '</div>' +
         '<div class="fhead lift">' + esc(it.label) + ' &middot; ' + fmtDuration(it.activity.moving_time) + '</div></span>';
       return;
     }
     if (it.kind === "missed") {
-      h += '<span class="fitem"' + idAttr + '><span class="fdot miss"></span>' +
+      h += '<span class="fitem"><span class="fdot miss"></span>' +
         '<div class="fwhen">' + esc(fmtDayLabel(it.date)) + '</div>' +
         '<div class="fhead miss">' + esc(it.label) + ' ... missed</div></span>';
       return;
     }
     if (it.kind === "today") {
-      h += '<span class="fitem now"' + idAttr + '><span class="fdot today"></span>' +
+      h += '<span class="fitem now"><span class="fdot today"></span>' +
         '<div class="fwhen now">Today &middot; ' + esc(fmtDayLabel(it.date)) + '</div>' +
         '<div class="fhead" style="color:var(--accent)">' + esc(it.label) + '</div>' +
         (it.detail ? '<div class="fmeta">' + esc(it.detail) + '</div>' : '') + '</span>';
-      return;
-    }
-    if (it.kind === "future") {
-      h += '<span class="fitem future"><span class="fdot"></span>' +
-        '<div class="fwhen">' + esc(fmtDayLabel(it.date)) + '</div>' +
-        '<div class="fhead lift">' + esc(it.label) + (it.detail ? " " + esc(it.detail) : "") + '</div></span>';
     }
   });
   if (open) h += '</div>';
@@ -148,21 +128,6 @@ async function runSync(btn) {
   }
 }
 
-/* Scrolls the "now" entry (today, or the rest-day fallback) to the top of
-   the viewport. Runs at most once per page load, only after the very first
-   render -- never on the quiet re-render that follows a sync, which must
-   not yank the page out from under someone mid-read. Also backs off if the
-   person has already scrolled before this runs, so a fast scroller is
-   never fought. */
-let hasAutoScrolled = false;
-function scrollToToday() {
-  if (hasAutoScrolled) return;
-  hasAutoScrolled = true;
-  if (window.scrollY > 2) return;
-  const target = document.getElementById("j-today");
-  if (target) target.scrollIntoView({ block: "start" });
-}
-
 let didInitialLoad = false;
 
 async function main() {
@@ -174,7 +139,6 @@ async function main() {
 
   if (!didInitialLoad) {
     didInitialLoad = true;
-    scrollToToday();
     // If a sync is already in flight (from another tab, say), render()
     // above is already waiting on it via waitForSyncDone().then(main); do
     // not also fire our own auto sync on top of it.

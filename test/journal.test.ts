@@ -21,13 +21,14 @@ const status: any = {
       week: 4, weekStart: "2026-07-27", phase: "recovery-1", recovery: true,
       summary: { plannedRuns: 3, completedRuns: 3, plannedMiles: 9, actualMiles: 9.667 },
       days: [
-        // Synthetic: dated in the past on purpose. Proves the week-rule
-        // filter must use `.some`, not `.every` -- a week with one
-        // future/today item mixed among real results must still get a
+        // Synthetic: dated in the past on purpose, and marked today rather
+        // than upcoming because upcoming days are no longer emitted at all.
+        // Proves the week-rule filter must use `.some`, not `.every` -- a
+        // week with one today item mixed among real results must still get a
         // rule. (Every other day below in this week is a real result, so
         // `.every` over the whole set would wrongly come out false and
         // swallow week 4's rule.)
-        { date: "2026-07-28", dayOfWeek: 1, plan: { type: "run", miles: 2, label: "2 mi", detail: "shakeout" }, status: "upcoming" },
+        { date: "2026-07-28", dayOfWeek: 1, plan: { type: "run", miles: 2, label: "2 mi", detail: "shakeout" }, status: "today" },
         { date: "2026-07-29", dayOfWeek: 2, plan: { type: "lift", label: "Bench" }, status: "completed",
           actual: { strava_id: 2, moving_time: 2384, name: "bench", type: "WeightTraining", date: "2026-07-29" } },
         // A plain, unshifted run -- proves "run" plan type maps to kind
@@ -60,11 +61,18 @@ describe("buildJournal", () => {
   const items = buildJournal(status, "2026-08-03");
   const kinds = items.map((i: any) => i.kind);
 
-  test("is ordered newest first, future above today", () => {
-    expect(kinds.indexOf("future")).toBeLessThan(kinds.indexOf("today"));
+  test("is ordered newest first", () => {
     const dates = items.filter((i: any) => i.date).map((i: any) => i.date);
     const sorted = [...dates].sort().reverse();
     expect(dates).toEqual(sorted);
+  });
+
+  test("leaves upcoming days out entirely, so the feed opens on the newest real entry", () => {
+    expect(kinds).not.toContain("future");
+    // 2026-08-04 is the fixture's only upcoming day. Asserting on the date as
+    // well as the kind keeps this honest if "future" is ever renamed.
+    expect(items.some((i: any) => i.date === "2026-08-04")).toBe(false);
+    expect(items[0].date).toBe("2026-08-03");
   });
 
   test("omits rest days entirely", () => {
@@ -147,9 +155,8 @@ describe("buildJournal", () => {
   });
 
   test("a rest day emits no 'today' item at all, not a rest placeholder", () => {
-    // journal.html's scroll-to-today (Change 3) relies on this: on a rest
-    // day there is nothing dated today in the feed to scroll to, so the
-    // client must fall back to the most recent past entry instead.
+    // On a rest day there is nothing dated today in the feed at all, so the
+    // feed simply opens on the most recent past entry.
     const restToday: any = {
       plan: { id: "10k-oct-2026", name: "10K Race Plan", phases: [], race: null },
       weeks: [
@@ -168,6 +175,6 @@ describe("buildJournal", () => {
     expect(items.some((i: any) => i.kind === "today")).toBe(false);
     expect(items.some((i: any) => i.date === "2026-08-03")).toBe(false);
     const kinds = items.map((i: any) => i.kind);
-    expect(kinds).toEqual(["future", "missed", "week-rule"]);
+    expect(kinds).toEqual(["missed", "week-rule"]);
   });
 });

@@ -242,9 +242,13 @@ body {
    catch the eye. Drawn as a pseudo element rather than padding the item,
    because .fdot is positioned against .fitem and padding would drag the
    timeline dot off the rail. */
+/* Starts clear of the dot rather than at -14px, where it met the dot's right
+   edge exactly and its 4px halo bled across the boundary: same colour inside
+   the panel, exposed outside it, so the dot read as half swallowed. The
+   timeline column stays the timeline's, the panel stays the text's. */
 .fitem.now:before {
   content: ''; position: absolute; z-index: 0;
-  left: -14px; right: -14px; top: -11px; bottom: 11px;
+  left: -4px; right: -14px; top: -11px; bottom: 11px;
   background: var(--accent-halo); border-radius: 9px;
 }
 /* The panel is positioned, so the text needs a stacking position of its own to
@@ -266,8 +270,6 @@ body {
   font: 800 9px var(--sans); letter-spacing: .12em; text-transform: uppercase;
   white-space: nowrap; color: var(--ink);
 }
-.fitem.future .fhead, .fitem.future .fmeta { color: var(--ink3); }
-.fitem.future .fdot { background: var(--paper); border-color: var(--hair); }
 
 /* ---------- nav ---------- */
 .nav {

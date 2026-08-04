@@ -2,9 +2,10 @@ import { getPlanStatus } from "./plan";
 // Shared with the browser on purpose: client and server must agree on "today".
 import { localDate } from "../public/lib.js";
 
-/* One flat, newest-first stream. Future days sit above today, greyed by the
-   client. Week summaries are emitted as rules between days rather than as a
-   separate view. */
+/* One flat, newest-first stream opening on the newest real entry. Upcoming days
+   are deliberately left out: the plan page is where you look ahead, and putting
+   them above today buried the thing you actually came to see. Week summaries
+   are emitted as rules between days rather than as a separate view. */
 export function buildJournal(status: any, todayIso: string) {
   const items: any[] = [];
 
@@ -32,7 +33,7 @@ export function buildJournal(status: any, todayIso: string) {
       } else if (d.status === "today") {
         dayItems.push({ kind: "today", date: d.date, label: d.plan.label, detail: d.plan.detail });
       } else if (d.status === "upcoming") {
-        dayItems.push({ kind: "future", date: d.date, label: d.plan.label, detail: d.plan.detail });
+        continue;
       } else if (d.status === "missed" || d.status === "partial") {
         dayItems.push({ kind: "missed", date: d.date, label: d.plan.label, planType: d.plan.type });
       }
@@ -42,9 +43,9 @@ export function buildJournal(status: any, todayIso: string) {
     items.push(...dayItems);
 
     // Only summarise a week that has actually produced something. A week whose
-    // days are all still ahead (today + future) has nothing to summarise, so
-    // the newest rule in the stream belongs to the last week with real results.
-    const hasResults = dayItems.some(i => i.kind !== "future" && i.kind !== "today");
+    // only entry is today has nothing to summarise yet, so the newest rule in
+    // the stream belongs to the last week with real results.
+    const hasResults = dayItems.some(i => i.kind !== "today");
     if (w.weekStart <= todayIso && hasResults) {
       items.push({
         kind: "week-rule",
