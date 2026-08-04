@@ -5,7 +5,7 @@ import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, get
 import { getPlanStatus, getAvailablePlans } from "./plan";
 import { getToday } from "./today";
 import { getJournal } from "./journal";
-import { ANALYZE_TIMEOUT_MS, buildAnalyzeCommand, buildSpawnEnv, normalizeNote, resolveAccount } from "./analyze";
+import { ANALYZE_TIMEOUT_MS, buildAnalyzeCommand, buildSpawnEnv, decideAnalyzeRequest, normalizeNote, resolveAccount } from "./analyze";
 
 const PORT = parseInt(process.env.PORT || "8081");
 const PUBLIC_DIR = join(import.meta.dir, "../public");
@@ -327,15 +327,13 @@ const server = Bun.serve({
           : {};
 
         const activity = getActivityByStravaId(stravaId);
-        if (!activity || activity.type !== "Run") return json({ error: "Not a run" }, 404);
-
-        // Re-analysis overwrites the existing feedback row, so it needs an
-        // explicit force. Enforced here, not only in the dialog, so a stray
-        // request cannot discard an analysis.
-        if (getFeedbackForActivity(stravaId) && body.force !== true)
-          return json({ error: "Feedback already exists", requires_confirmation: true }, 409);
-
-        if (analyzing) return json({ error: "Analysis already in progress" }, 409);
+        const decision = decideAnalyzeRequest({
+          activityType: activity ? String(activity.type ?? "") : null,
+          hasFeedback: !!getFeedbackForActivity(stravaId),
+          force: body.force === true,
+          analyzing,
+        });
+        if (!decision.ok) return json(decision.body, decision.status);
 
         let account: string;
         try {

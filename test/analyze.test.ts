@@ -1,6 +1,6 @@
 import { expect, test, describe } from "bun:test";
 import {
-  buildAnalyzeCommand, buildAnalyzePrompt, buildSpawnEnv, resolveAccount, normalizeNote,
+  buildAnalyzeCommand, buildAnalyzePrompt, buildSpawnEnv, decideAnalyzeRequest, resolveAccount, normalizeNote,
   DEFAULT_ACCOUNT,
 } from "../src/analyze";
 
@@ -62,7 +62,7 @@ describe("account pinning", () => {
   });
 
   test("rejects the work account with a trailing NUL byte", () => {
-    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "matthew.goodwin@assured.claims " })).toThrow();
+    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "matthew.goodwin@assured.claims\0" })).toThrow();
   });
 
   test("rejects the work account with a trailing zero width space", () => {
@@ -171,5 +171,54 @@ describe("spawn environment", () => {
 
   test("carries other environment variables through", () => {
     expect(buildSpawnEnv({ HOME: "/h", PATH: "/usr/bin", FOO: "bar" }).FOO).toBe("bar");
+  });
+});
+
+describe("analyze route guards", () => {
+  const base = { activityType: "Run", hasFeedback: false, force: false, analyzing: false };
+
+  test("allows a fresh run with no feedback", () => {
+    expect(decideAnalyzeRequest(base)).toEqual({ ok: true });
+  });
+
+  test("rejects anything that is not a run", () => {
+    const d = decideAnalyzeRequest({ ...base, activityType: "WeightTraining" });
+    expect(d).toEqual({ ok: false, status: 404, body: { error: "Not a run" } });
+  });
+
+  test("rejects a missing activity", () => {
+    expect(decideAnalyzeRequest({ ...base, activityType: null }).ok).toBe(false);
+  });
+
+  test("demands confirmation when feedback already exists", () => {
+    const d = decideAnalyzeRequest({ ...base, hasFeedback: true });
+    expect(d).toEqual({
+      ok: false, status: 409,
+      body: { error: "Feedback already exists", requires_confirmation: true },
+    });
+  });
+
+  test("proceeds past the confirmation gate only with an explicit force", () => {
+    expect(decideAnalyzeRequest({ ...base, hasFeedback: true, force: true })).toEqual({ ok: true });
+  });
+
+  test("rejects a concurrent analysis", () => {
+    const d = decideAnalyzeRequest({ ...base, analyzing: true });
+    expect(d).toEqual({ ok: false, status: 409, body: { error: "Analysis already in progress" } });
+  });
+
+  test("the confirmation gate is reached before the concurrency gate", () => {
+    const d = decideAnalyzeRequest({ ...base, hasFeedback: true, analyzing: true });
+    expect(d).toEqual({
+      ok: false, status: 409,
+      body: { error: "Feedback already exists", requires_confirmation: true },
+    });
+  });
+
+  test("the not-a-run check precedes every other gate", () => {
+    const d = decideAnalyzeRequest({
+      activityType: "Ride", hasFeedback: true, force: false, analyzing: true,
+    });
+    expect(d).toEqual({ ok: false, status: 404, body: { error: "Not a run" } });
   });
 });

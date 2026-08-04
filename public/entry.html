@@ -83,6 +83,15 @@ function analyzeIdle() {
   document.getElementById("abtn").onclick = openDialog;
 }
 
+/* Renders the in-flight state and rejoins the existing poll, so returning to
+   the page mid-analysis shows what is actually happening instead of an
+   Analyze button that will be rejected. */
+function analyzeRunning() {
+  document.getElementById("arow").innerHTML =
+    '<button class="chip light chipbtn" disabled>Analyzing...</button>' +
+    '<span class="anote">This takes a minute or two. You can leave the page.</span>';
+}
+
 /* The note field shows on a first analysis too, not just re-runs: it is one
    code path, and context is far more useful up front than as a correction
    afterward. The overwrite warning is what is conditional. */
@@ -100,17 +109,34 @@ function openDialog() {
   document.getElementById("ago").onclick = () => run(document.getElementById("anote").value);
 }
 
+/* Waits out an analysis already known to be running (whether just started by
+   run() or rejoined by load() after a reload) and renders the result. */
+async function awaitAnalysis() {
+  analyzeRunning();
+  try {
+    const result = await pollAnalysis(id);
+    if (result.status === "done") {
+      const landed = await fetch("/api/activities/" + id + "/feedback")
+        .then(r => r.ok).catch(() => false);
+      await load();
+      /* Exit code 0 does not mean the session wrote anything. Surfacing the
+         difference is the whole point of tracking them separately. */
+      if (!landed) fail("The analysis finished but did not write any feedback. Try again.");
+      return;
+    }
+    fail(friendlyError(result.error));
+  } catch (e) {
+    fail(friendlyError(e.message));
+  }
+}
+
 async function run(note) {
-  document.getElementById("arow").innerHTML =
-    '<button class="chip light chipbtn" disabled>Analyzing...</button>' +
-    '<span class="anote">This takes a minute or two. You can leave the page.</span>';
+  analyzeRunning();
   try {
     // hasFeedback already implies confirmation happened in openDialog.
     const started = await requestAnalysis(id, { note, force: hasFeedback });
     if (started.needsConfirm) { hasFeedback = true; openDialog(); return; }
-    const result = await pollAnalysis(id);
-    if (result.status === "done") { await load(); return; }
-    fail(friendlyError(result.error));
+    await awaitAnalysis();
   } catch (e) {
     fail(friendlyError(e.message));
   }
@@ -164,7 +190,10 @@ async function load() {
 
   document.getElementById("root").innerHTML = h;
   hasFeedback = !!(fb && fb.narrative);
-  analyzeIdle();
+  const pending = await fetch("/api/activities/" + id + "/analyze")
+    .then(r => r.ok ? r.json() : null).catch(() => null);
+  if (pending && pending.status === "running") awaitAnalysis();
+  else analyzeIdle();
 }
 
 function safeParse(s) { try { return JSON.parse(s); } catch { return null; } }

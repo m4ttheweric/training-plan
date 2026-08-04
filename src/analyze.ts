@@ -73,6 +73,29 @@ export function buildAnalyzeCommand(
 export const SPAWN_PATH_PREFIXES = [".local/bin", ".bun/bin"];
 export const SPAWN_PATH_SYSTEM = ["/opt/homebrew/bin", "/usr/local/bin"];
 
+export type AnalyzeDecision =
+  | { ok: true }
+  | { ok: false; status: number; body: Record<string, unknown> };
+
+/* The analyze route's guard ordering, extracted so it can be tested without a
+   live server. Order matters: re-analysis overwrites an existing analysis, so
+   the confirmation gate must be reached before anything else can short
+   circuit it away. */
+export function decideAnalyzeRequest(input: {
+  activityType: string | null | undefined;
+  hasFeedback: boolean;
+  force: boolean;
+  analyzing: boolean;
+}): AnalyzeDecision {
+  if (input.activityType !== "Run")
+    return { ok: false, status: 404, body: { error: "Not a run" } };
+  if (input.hasFeedback && input.force !== true)
+    return { ok: false, status: 409, body: { error: "Feedback already exists", requires_confirmation: true } };
+  if (input.analyzing)
+    return { ok: false, status: 409, body: { error: "Analysis already in progress" } };
+  return { ok: true };
+}
+
 export function buildSpawnEnv(
   env: Record<string, string | undefined>,
 ): Record<string, string> {

@@ -5,8 +5,10 @@
  * state machine only. entry.html owns every bit of rendering.
  */
 
-/* The server kills a run at 5 minutes, so 120 attempts at 3s (6 minutes)
-   always outlives the subprocess rather than giving up while it is alive. */
+/* The server's real backstop is 5 minutes to SIGTERM, plus a 10s SIGKILL
+   grace, plus a 20s release grace: 5 min 30s worst case. 120 attempts at 3s
+   (6 minutes) leaves a 30 second margin past that, rather than giving up
+   while the subprocess could still be alive. */
 const POLL_INTERVAL_MS = 3000;
 const POLL_MAX_ATTEMPTS = 120;
 
