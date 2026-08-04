@@ -85,6 +85,19 @@ db.exec(`
     narrative TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS feedback_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    activity_strava_id INTEGER NOT NULL,
+    note TEXT,
+    status TEXT NOT NULL DEFAULT 'running',
+    error TEXT,
+    exit_code INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    finished_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_feedback_requests_activity
+    ON feedback_requests(activity_strava_id, created_at DESC);
 `);
 
 export function getTokens() {
@@ -347,6 +360,52 @@ export function updateActivityDetail(stravaId: number, detail: { calories?: numb
   if (detail.description != null) { sets.push("description = COALESCE(description, $desc)"); params.$desc = detail.description; }
   if (!sets.length) return;
   db.query(`UPDATE activities SET ${sets.join(", ")} WHERE strava_id = $id`).run(params);
+}
+
+export interface FeedbackRequestRow {
+  id: number;
+  activity_strava_id: number;
+  note: string | null;
+  status: string;
+  error: string | null;
+  exit_code: number | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export function createFeedbackRequest(stravaId: number, note: string | null): number {
+  const row = db.query(`
+    INSERT INTO feedback_requests (activity_strava_id, note, status)
+    VALUES ($id, $note, 'running')
+    RETURNING id
+  `).get({ $id: stravaId, $note: note }) as { id: number };
+  return row.id;
+}
+
+export function finishFeedbackRequest(
+  id: number, status: "done" | "failed", error: string | null, exitCode: number | null,
+): void {
+  db.query(`
+    UPDATE feedback_requests
+    SET status = $status, error = $error, exit_code = $code, finished_at = datetime('now')
+    WHERE id = $id
+  `).run({ $id: id, $status: status, $error: error, $code: exitCode });
+}
+
+export function getLatestFeedbackRequest(stravaId: number): FeedbackRequestRow | null {
+  return db.query(`
+    SELECT id, activity_strava_id, note, status, error, exit_code, created_at, finished_at
+    FROM feedback_requests WHERE activity_strava_id = ?
+    ORDER BY created_at DESC, id DESC LIMIT 1
+  `).get(stravaId) as FeedbackRequestRow | null;
+}
+
+/* src/db.ts had no single-activity lookup before this: getActivities() only
+   returns filtered lists. The analyze route needs one row to check the type is
+   Run and to read start_date_local for the prompt date. */
+export function getActivityByStravaId(stravaId: number): Record<string, unknown> | null {
+  return db.query("SELECT * FROM activities WHERE strava_id = ?")
+    .get(stravaId) as Record<string, unknown> | null;
 }
 
 export default db;
