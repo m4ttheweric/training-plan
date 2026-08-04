@@ -54,6 +54,7 @@ export function buildToday(status: any, todayIso: string, lookup: TodayLookup) {
       moving_time: a.moving_time,
       average_speed: a.average_speed,
       average_heartrate: a.average_heartrate,
+      max_heartrate: a.max_heartrate,
       weather: a.weather ?? null,
       splits: lookup.splits(a.strava_id),
       narrative: fb ? fb.narrative : null,

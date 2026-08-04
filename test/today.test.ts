@@ -21,7 +21,7 @@ const status: any = {
         { date: "2026-07-31", dayOfWeek: 4, plan: { type: "long", miles: 3.5, label: "3.5 mi", detail: "easy" },
           status: "completed", shiftedFrom: "2026-08-01",
           actual: { strava_id: 19559217595, distance: 6524.4, moving_time: 2326, average_speed: 2.805,
-                    average_heartrate: 143.1, name: "Half Moon Bay", type: "Run", date: "2026-08-01",
+                    average_heartrate: 143.1, max_heartrate: 153, name: "Half Moon Bay", type: "Run", date: "2026-08-01",
                     weather: { temp: 56.2, feels: 57.4, humidity: 100, wind: 1.8, code: 45 } } },
         { date: "2026-08-01", dayOfWeek: 5, plan: { type: "lift", label: "Dead" }, status: "missed" },
         { date: "2026-08-02", dayOfWeek: 6, plan: { type: "rest", label: "rest" }, status: "rest" },
@@ -89,6 +89,7 @@ describe("buildToday", () => {
     expect(view.lastRun.shiftedFrom).toBe("2026-07-31");
     expect(view.lastRun.splits).toHaveLength(1);
     expect(view.lastRun.narrative).toContain("Friday's long run");
+    expect(view.lastRun.max_heartrate).toBe(153);
   });
 
   test("excludes a run whose actual date is still in the future, even when its slot is not", () => {
@@ -97,6 +98,10 @@ describe("buildToday", () => {
     const asOfJul31 = buildToday(status, "2026-07-31", lookup);
     expect(asOfJul31.lastRun.strava_id).toBe(19537874102);
     expect(asOfJul31.lastRun.date).toBe("2026-07-30");
+    // This fixture activity carries no max_heartrate, so the field must come
+    // through as absent rather than coerced to null or 0 -- the page's chip
+    // guard (`if (r.max_heartrate)`) relies on it being falsy either way.
+    expect(asOfJul31.lastRun.max_heartrate).toBeUndefined();
   });
 
   test("returns the trailing three weeks with the current one flagged", () => {

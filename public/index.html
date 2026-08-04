@@ -67,6 +67,7 @@ function render(d) {
          '<b class="sec">' + fmtPaceFromSpeed(r.average_speed) + '</b><em>/mi</em></div>';
     h += '<div class="chips">';
     if (r.average_heartrate) h += '<div class="chip light">HR <b>' + Math.round(r.average_heartrate) + '</b></div>';
+    if (r.max_heartrate) h += '<div class="chip light">max <b>' + Math.round(r.max_heartrate) + '</b></div>';
     if (r.weather && r.weather.feels != null) h += '<div class="chip light">feels <b>' + Math.round(r.weather.feels) + '&deg;</b></div>';
     h += '</div>';
     h += '<div style="margin-top:18px">' + splitRows(r.splits) + '</div>';

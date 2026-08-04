@@ -40,6 +40,7 @@ interface ActualInfo {
   moving_time?: number;
   average_speed?: number;
   average_heartrate?: number;
+  max_heartrate?: number;
   name?: string;
   type?: string;
   date?: string;
@@ -144,6 +145,7 @@ export function getPlanStatus(planId?: string, today?: string): PlanStatusRespon
     moving_time: number;
     average_speed: number;
     average_heartrate: number;
+    max_heartrate: number;
     name: string;
     weather_temp: number | null;
     weather_feels: number | null;
@@ -163,6 +165,7 @@ export function getPlanStatus(planId?: string, today?: string): PlanStatusRespon
     return {
       strava_id: a.strava_id, distance: a.distance, moving_time: a.moving_time,
       average_speed: a.average_speed, average_heartrate: a.average_heartrate,
+      max_heartrate: a.max_heartrate,
       name: a.name, type: a.type, date: a.start_date_local.slice(0, 10),
       weather: weatherOf(a),
     };
