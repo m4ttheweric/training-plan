@@ -1,7 +1,7 @@
 import { join, extname } from "path";
-import { getAuthUrl, exchangeCode, stravaPut } from "./strava/client";
+import { getAuthUrl, exchangeCode } from "./strava/client";
 import { syncActivities } from "./strava/sync";
-import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, getTokens, updateActivityName, getSplitsForActivity, getFeedbackForActivity, upsertFeedback } from "./db";
+import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, getTokens, getSplitsForActivity, getFeedbackForActivity, upsertFeedback } from "./db";
 import { getPlanStatus, getAvailablePlans } from "./plan";
 import { getToday } from "./today";
 import { getJournal } from "./journal";
@@ -98,21 +98,6 @@ const server = Bun.serve({
       const limit = url.searchParams.get("limit") ? Number(url.searchParams.get("limit")) : undefined;
       const offset = url.searchParams.get("offset") ? Number(url.searchParams.get("offset")) : undefined;
       return json(getActivities({ type, after, before, limit, offset }));
-    }
-
-    const activityMatch = path.match(/^\/api\/activities\/(\d+)\/name$/);
-    if (activityMatch && req.method === "PUT") {
-      const stravaId = Number(activityMatch[1]);
-      try {
-        const body = await req.json() as { name: string };
-        if (!body.name?.trim()) return json({ error: "Name is required" }, 400);
-        const name = body.name.trim();
-        await stravaPut(`/activities/${stravaId}`, { name });
-        updateActivityName(stravaId, name);
-        return json({ ok: true, name });
-      } catch (e) {
-        return json({ error: String(e) }, 500);
-      }
     }
 
     const splitsMatch = path.match(/^\/api\/activities\/(\d+)\/splits$/);
