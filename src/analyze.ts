@@ -62,3 +62,29 @@ export function buildAnalyzeCommand(
     "-p", buildAnalyzePrompt(opts.date, opts.note),
   ];
 }
+
+/* The launchd service runs `bun src/server.ts` directly rather than
+   start-server.sh, so it inherits a bare PATH of /usr/bin:/bin:/usr/sbin:/sbin
+   and cannot see cswap or claude in ~/.local/bin. Rather than depend on how
+   the server happened to be launched, the spawn builds its own PATH. */
+export const SPAWN_PATH_PREFIXES = [".local/bin", ".bun/bin"];
+export const SPAWN_PATH_SYSTEM = ["/opt/homebrew/bin", "/usr/local/bin"];
+
+export function buildSpawnEnv(
+  env: Record<string, string | undefined>,
+): Record<string, string> {
+  const home = (env.HOME ?? "").trim();
+  const homeDirs = home ? SPAWN_PATH_PREFIXES.map((p) => `${home}/${p}`) : [];
+  const current = (env.PATH ?? "").split(":");
+  const seen = new Set<string>();
+  const merged: string[] = [];
+  for (const dir of [...homeDirs, ...SPAWN_PATH_SYSTEM, ...current]) {
+    if (!dir || seen.has(dir)) continue;
+    seen.add(dir);
+    merged.push(dir);
+  }
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(env)) if (v !== undefined) out[k] = v;
+  out.PATH = merged.join(":");
+  return out;
+}

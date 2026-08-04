@@ -5,7 +5,7 @@ import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, get
 import { getPlanStatus, getAvailablePlans } from "./plan";
 import { getToday } from "./today";
 import { getJournal } from "./journal";
-import { ANALYZE_TIMEOUT_MS, buildAnalyzeCommand, normalizeNote, resolveAccount } from "./analyze";
+import { ANALYZE_TIMEOUT_MS, buildAnalyzeCommand, buildSpawnEnv, normalizeNote, resolveAccount } from "./analyze";
 
 const PORT = parseInt(process.env.PORT || "8081");
 const PUBLIC_DIR = join(import.meta.dir, "../public");
@@ -118,6 +118,7 @@ function startAnalysis(
   try {
     proc = Bun.spawn(buildAnalyzeCommand({ account, date, note }), {
       cwd: join(import.meta.dir, ".."),
+      env: buildSpawnEnv(process.env),
       stdout: "pipe",
       stderr: "pipe",
     });

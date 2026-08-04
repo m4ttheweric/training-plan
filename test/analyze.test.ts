@@ -1,6 +1,6 @@
 import { expect, test, describe } from "bun:test";
 import {
-  buildAnalyzeCommand, buildAnalyzePrompt, resolveAccount, normalizeNote,
+  buildAnalyzeCommand, buildAnalyzePrompt, buildSpawnEnv, resolveAccount, normalizeNote,
   DEFAULT_ACCOUNT,
 } from "../src/analyze";
 
@@ -122,5 +122,42 @@ describe("note normalization", () => {
     expect(normalizeNote("   ")).toBeNull();
     expect(normalizeNote(undefined)).toBeNull();
     expect(normalizeNote(42)).toBeNull();
+  });
+});
+
+describe("spawn environment", () => {
+  test("puts the home bin directories on PATH", () => {
+    const env = buildSpawnEnv({ HOME: "/Users/matt", PATH: "/usr/bin:/bin" });
+    const dirs = env.PATH.split(":");
+    expect(dirs).toContain("/Users/matt/.local/bin");
+    expect(dirs).toContain("/Users/matt/.bun/bin");
+  });
+
+  test("preserves the inherited PATH entries", () => {
+    const env = buildSpawnEnv({ HOME: "/Users/matt", PATH: "/usr/bin:/bin" });
+    const dirs = env.PATH.split(":");
+    expect(dirs).toContain("/usr/bin");
+    expect(dirs).toContain("/bin");
+  });
+
+  test("puts the home bin directories ahead of the inherited ones", () => {
+    const env = buildSpawnEnv({ HOME: "/Users/matt", PATH: "/usr/bin" });
+    const dirs = env.PATH.split(":");
+    expect(dirs.indexOf("/Users/matt/.local/bin")).toBeLessThan(dirs.indexOf("/usr/bin"));
+  });
+
+  test("does not duplicate a directory already on PATH", () => {
+    const env = buildSpawnEnv({ HOME: "/Users/matt", PATH: "/Users/matt/.local/bin:/usr/bin" });
+    const dirs = env.PATH.split(":");
+    expect(dirs.filter((d) => d === "/Users/matt/.local/bin").length).toBe(1);
+  });
+
+  test("survives a missing PATH and a missing HOME", () => {
+    expect(buildSpawnEnv({ HOME: "/Users/matt" }).PATH).toContain("/Users/matt/.local/bin");
+    expect(buildSpawnEnv({ PATH: "/usr/bin" }).PATH).toContain("/usr/bin");
+  });
+
+  test("carries other environment variables through", () => {
+    expect(buildSpawnEnv({ HOME: "/h", PATH: "/usr/bin", FOO: "bar" }).FOO).toBe("bar");
   });
 });
