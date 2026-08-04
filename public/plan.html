@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="shell" id="root"></div>
+<script type="module">
+import { esc } from "/lib.js";
+
+const NAV = '<nav class="nav">' +
+  '<a href="/">Today</a>' +
+  '<a href="/journal.html">Journal</a>' +
+  '<a href="/plan.html" class="on">Plan</a></nav>';
+
+const HEADS = ["Mon","Tue","Wed","Thu","Fri","Sat"];
+const today = new Date().toISOString().slice(0, 10);
+
+function cellClass(type) {
+  if (type === "run") return "run";
+  if (type === "long" || type === "race") return "long";
+  if (type === "lift") return "lift";
+  return "";
+}
+
+function cell(day) {
+  if (day.plan.type === "rest") return '<td><div class="restcell">rest</div></td>';
+
+  const isToday = day.date === today;
+  let tick = "";
+  if (day.status === "completed") tick = '<span class="tick ok">&check;' + (day.shiftedFrom ? "&#8614;" : "") + '</span>';
+  else if (day.status === "missed") tick = '<span class="tick no">&times;</span>';
+  else if (day.status === "partial") tick = '<span class="tick">&frac12;</span>';
+  else if (isToday) tick = '<span class="tick">today</span>';
+
+  const label = day.plan.miles != null ? String(day.plan.miles) : esc(day.plan.label).slice(0, 2);
+  return '<td><div class="cellbox ' + (isToday ? "now" : cellClass(day.plan.type)) + '">' + label + tick + '</div></td>';
+}
+
+function render(data) {
+  let h = NAV;
+  const race = data.plan.race;
+
+  h += '<div class="block"><div class="kicker">' + esc(data.plan.name) + '</div>';
+  if (race) {
+    const days = Math.round((Date.parse(race.date + "T12:00:00Z") - Date.parse(today + "T12:00:00Z")) / 86400000);
+    const weeks = Math.max(0, Math.ceil(days / 7));
+    h += '<div class="h1 sm">' + weeks + ' weeks out</div>';
+    h += '<div style="font:600 13px var(--sans);opacity:.88">' + esc(race.date) +
+         ' &middot; target ' + esc(race.targetPace) + ' &middot; ' + esc(race.targetTime) + '</div>';
+  }
+  h += '</div><div class="pad"><div class="gscroll"><table class="gtbl">';
+
+  h += '<tr><th class="wkc"></th>' + HEADS.map(d => '<th>' + d + '</th>').join("") +
+       '<th class="sunh">Sun</th><th style="padding-left:9px">Tot</th></tr>';
+
+  for (const w of data.weeks) {
+    const cur = w.days.some(d => d.date === today);
+    h += '<tr><td class="wkc"' + (cur ? ' style="color:var(--accent)"' : '') + '>Wk ' + w.week + '</td>';
+    h += w.days.map(cell).join("");
+    const pct = w.summary.plannedMiles > 0
+      ? Math.min(100, Math.round((w.summary.actualMiles / w.summary.plannedMiles) * 100)) : 0;
+    const shown = w.summary.actualMiles > 0 ? w.summary.actualMiles.toFixed(1) : String(w.summary.plannedMiles);
+    h += '<td class="gtot">' + shown + '<div class="wkbar"><i style="width:' + pct + '%"></i></div></td></tr>';
+  }
+  h += '</table></div>';
+
+  for (const p of data.plan.phases) {
+    h += '<div class="sec-h">' + esc(p.name) + ' &middot; ' + esc(p.tag) + '</div>';
+    h += '<div class="body"><p>' + esc(p.description) + '</p></div>';
+  }
+  if (data.plan.rules && data.plan.rules.length) {
+    h += '<div class="sec-h">Ground rules</div><div class="body">';
+    for (const r of data.plan.rules) h += '<p><b>' + esc(r.label) + '.</b> ' + esc(r.text) + '</p>';
+    h += '</div>';
+  }
+  h += '</div>';
+  document.getElementById("root").innerHTML = h;
+}
+
+fetch("/api/plan/status").then(r => r.json()).then(render).catch(e => {
+  document.getElementById("root").innerHTML = NAV +
+    '<div class="pad"><div class="body">Could not load: ' + esc(e.message) + '</div></div>';
+});
+</script>
+</body>
+</html>
