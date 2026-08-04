@@ -10,6 +10,7 @@
 <div class="shell" id="root"></div>
 <script type="module">
 import { esc, fmtMiles, fmtPaceFromSpeed, fmtDayLabel, renderMarkdown, firstParagraph } from "/lib.js";
+import { requestAnalysis, pollAnalysis, friendlyError } from "/analyze.js";
 
 const NAV = '<nav class="nav">' +
   '<a href="/">Today</a>' +
@@ -73,6 +74,54 @@ function deltaCells(an) {
     cells.map(c => '<div class="dcell">' + c[0] + '<span>' + c[1] + '</span></div>').join("") + '</div>';
 }
 
+let hasFeedback = false;
+
+function analyzeIdle() {
+  document.getElementById("arow").innerHTML =
+    '<button class="chip light chipbtn" id="abtn">' +
+    (hasFeedback ? "Re-analyze" : "Analyze this run") + '</button>';
+  document.getElementById("abtn").onclick = openDialog;
+}
+
+/* The note field shows on a first analysis too, not just re-runs: it is one
+   code path, and context is far more useful up front than as a correction
+   afterward. The overwrite warning is what is conditional. */
+function openDialog() {
+  document.getElementById("arow").innerHTML =
+    '<div class="adlg">' +
+    (hasFeedback ? '<p class="warn">This overwrites the existing analysis and cannot be undone.</p>' : '') +
+    '<p>Anything I should know about this run?</p>' +
+    '<input id="anote" type="text" placeholder="Optional ... e.g. mild virus, scaled back">' +
+    '<div class="acts">' +
+    '<button class="chip light chipbtn" id="ago">' + (hasFeedback ? "Re-analyze" : "Analyze") + '</button>' +
+    '<button class="chip light chipbtn" id="acancel">Cancel</button>' +
+    '</div></div>';
+  document.getElementById("acancel").onclick = analyzeIdle;
+  document.getElementById("ago").onclick = () => run(document.getElementById("anote").value);
+}
+
+async function run(note) {
+  document.getElementById("arow").innerHTML =
+    '<button class="chip light chipbtn" disabled>Analyzing...</button>' +
+    '<span class="anote">This takes a minute or two. You can leave the page.</span>';
+  try {
+    // hasFeedback already implies confirmation happened in openDialog.
+    const started = await requestAnalysis(id, { note, force: hasFeedback });
+    if (started.needsConfirm) { hasFeedback = true; openDialog(); return; }
+    const result = await pollAnalysis(id);
+    if (result.status === "done") { await load(); return; }
+    fail(friendlyError(result.error));
+  } catch (e) {
+    fail(friendlyError(e.message));
+  }
+}
+
+function fail(message) {
+  analyzeIdle();
+  document.getElementById("arow").insertAdjacentHTML(
+    "beforeend", '<div class="aerr">' + esc(message) + '</div>');
+}
+
 async function load() {
   const acts = await fetch("/api/activities?limit=400").then(r => r.json());
   const a = acts.find(x => String(x.strava_id) === String(id));
@@ -94,7 +143,9 @@ async function load() {
   if (a.max_heartrate) h += '<div class="chip">max <b>' + Math.round(a.max_heartrate) + '</b></div>';
   if (a.weather_feels != null) h += '<div class="chip">feels <b>' + Math.round(a.weather_feels) + '&deg;</b></div>';
   if (a.total_elevation_gain) h += '<div class="chip">gain <b>' + Math.round(a.total_elevation_gain * 3.28084) + 'ft</b></div>';
-  h += '</div></div>';
+  h += '</div>';
+  h += '<div class="arow" id="arow"></div>';
+  h += '</div>';
 
   h += '<div class="pad">';
   /* Decide the "no analysis" fallback by whether any content section actually
@@ -112,6 +163,8 @@ async function load() {
   h += '</div>';
 
   document.getElementById("root").innerHTML = h;
+  hasFeedback = !!(fb && fb.narrative);
+  analyzeIdle();
 }
 
 function safeParse(s) { try { return JSON.parse(s); } catch { return null; } }
