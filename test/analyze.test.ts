@@ -83,6 +83,18 @@ describe("account pinning", () => {
     expect(resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "goodwin.matthew.eric@gmail.com" }))
       .toBe("goodwin.matthew.eric@gmail.com");
   });
+
+  test("does not pass a literal claude argument, which cswap supplies itself", () => {
+    const cmd = buildAnalyzeCommand(OPTS);
+    expect(cmd).not.toContain("claude");
+  });
+
+  test("the argument after the -- separator is a flag, not a binary name", () => {
+    const cmd = buildAnalyzeCommand(OPTS);
+    const sep = cmd.indexOf("--");
+    expect(sep).toBeGreaterThan(-1);
+    expect(cmd[sep + 1]!.startsWith("-")).toBe(true);
+  });
 });
 
 describe("prompt shaping", () => {
@@ -90,8 +102,8 @@ describe("prompt shaping", () => {
     expect(buildAnalyzePrompt("2026-08-03", null)).toContain("2026-08-03");
   });
 
-  test("invokes the skill by natural-language description, not a slash command", () => {
-    expect(buildAnalyzePrompt("2026-08-03", null)).toBe("Give me feedback on my 2026-08-03 run.");
+  test("invokes the skill by its slash command", () => {
+    expect(buildAnalyzePrompt("2026-08-03", null)).toBe("/matt:run-feedback 2026-08-03");
   });
 
   test("includes the note text when given", () => {

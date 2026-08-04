@@ -44,20 +44,23 @@ export function normalizeNote(note: unknown): string | null {
 }
 
 export function buildAnalyzePrompt(date: string, note: string | null): string {
-  const base = `Give me feedback on my ${date} run.`;
+  const base = `/matt:run-feedback ${date}`;
   const clean = normalizeNote(note);
   return clean ? `${base}\n\nAdditional context from the athlete: ${clean}` : base;
 }
 
 /* --allowedTools is scoped to curl rather than bypassing permissions outright,
    because the skill's only side effects are curl calls to the local API. */
+/* cswap run <account> -- <args> invokes claude itself and appends these
+   args, so passing a literal "claude" here would be consumed as a
+   positional prompt and would silently mangle the real prompt. */
 export function buildAnalyzeCommand(
   opts: { account: string; date: string; note: string | null },
 ): string[] {
   const account = assertPersonalAccount(opts.account);
   return [
     "cswap", "run", account, "--",
-    "claude", "--model", "opus",
+    "--model", "opus",
     "--allowedTools", "Bash(curl:*)",
     "-p", buildAnalyzePrompt(opts.date, opts.note),
   ];
