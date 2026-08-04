@@ -90,6 +90,10 @@ describe("prompt shaping", () => {
     expect(buildAnalyzePrompt("2026-08-03", null)).toContain("2026-08-03");
   });
 
+  test("invokes the skill by natural-language description, not a slash command", () => {
+    expect(buildAnalyzePrompt("2026-08-03", null)).toBe("Give me feedback on my 2026-08-03 run.");
+  });
+
   test("includes the note text when given", () => {
     expect(buildAnalyzePrompt("2026-08-03", "mild virus, scaled back"))
       .toContain("mild virus, scaled back");

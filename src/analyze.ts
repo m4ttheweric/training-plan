@@ -44,7 +44,7 @@ export function normalizeNote(note: unknown): string | null {
 }
 
 export function buildAnalyzePrompt(date: string, note: string | null): string {
-  const base = `/matt:run-feedback ${date}`;
+  const base = `Give me feedback on my ${date} run.`;
   const clean = normalizeNote(note);
   return clean ? `${base}\n\nAdditional context from the athlete: ${clean}` : base;
 }
