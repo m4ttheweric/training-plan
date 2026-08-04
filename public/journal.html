@@ -106,7 +106,7 @@ function feedHtml(items) {
       return;
     }
     if (it.kind === "today") {
-      h += '<span class="fitem"' + idAttr + '><span class="fdot today"></span>' +
+      h += '<span class="fitem now"' + idAttr + '><span class="fdot today"></span>' +
         '<div class="fwhen now">Today &middot; ' + esc(fmtDayLabel(it.date)) + '</div>' +
         '<div class="fhead" style="color:var(--accent)">' + esc(it.label) + '</div>' +
         (it.detail ? '<div class="fmeta">' + esc(it.detail) + '</div>' : '') + '</span>';

@@ -36,6 +36,10 @@ function cell(day) {
   else if (day.status === "missed") tick = '<span class="tick no">&times;</span>';
   else if (day.status === "partial") tick = '<span class="tick">&frac12;</span>';
   else if (isToday) tick = '<span class="tick">today</span>';
+  /* Always emit the tick line, even empty. Only the current week mixes
+     ticked and unticked days, so without this its cells are a line shorter
+     than their neighbours and the row looks ragged. */
+  else tick = '<span class="tick"></span>';
 
   const label = day.plan.miles != null ? String(day.plan.miles) : esc(String(day.plan.label).slice(0, 2));
   return '<td><div class="cellbox ' + (isToday ? "now" : cellClass(day.plan.type)) + '">' + label + tick + '</div></td>';

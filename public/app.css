@@ -36,6 +36,10 @@
   --sans: system-ui, -apple-system, 'Helvetica Neue', sans-serif;
   --pad: 18px;
   --maxw: 720px;
+  /* One height for every square in the plan grid. Run cells and rest cells are
+     built differently, so without a shared value they drift apart whenever
+     either one's metrics change. */
+  --cell-h: 42px;
 }
 
 /* ============================================================
@@ -193,16 +197,19 @@ body {
   border-radius: 5px; padding: 7px 2px; font: 700 12px var(--sans);
   background: var(--wash); color: var(--ink2); min-width: 50px;
   font-variant-numeric: tabular-nums;
+  height: var(--cell-h); box-sizing: border-box;
 }
 .cellbox.run  { background: var(--run-bg);  color: var(--run-fg); }
 .cellbox.long { background: var(--long-bg); color: var(--long-fg); }
 .cellbox.lift { background: var(--lift-bg); color: var(--lift-fg); font-weight: 600; }
 .cellbox.now  { background: var(--accent); color: #fff; box-shadow: 0 0 0 2px var(--ink); }
-.cellbox .tick { display: block; font-size: 9px; font-weight: 800; margin-top: 2px; }
+/* Fixed line box so an empty tick reserves exactly the same space a filled
+   one takes, keeping every cell in a row the same height. */
+.cellbox .tick { display: block; font-size: 9px; font-weight: 800; margin-top: 2px; height: 11px; line-height: 11px; }
 .cellbox .tick.ok { color: var(--good); }
 .cellbox .tick.no { color: var(--bad); }
 .restcell {
-  min-width: 34px; width: 34px; height: 34px; border-radius: 5px;
+  min-width: 34px; width: 34px; height: var(--cell-h); border-radius: 5px;
   background: repeating-linear-gradient(135deg,
     var(--hatch-a) 0 4px, var(--hatch-b) 4px 8px);
   color: var(--hatch-fg); font: 700 8.5px var(--sans); letter-spacing: .05em;
@@ -231,6 +238,18 @@ body {
 .fdot.lift  { background: var(--ink3); border-color: var(--ink3); border-radius: 3px; }
 .fdot.miss  { background: var(--bad); border-color: var(--bad); }
 .fdot.today { background: var(--paper); border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-halo); }
+/* Today is the entry people scan the feed for, and accent text alone did not
+   catch the eye. Drawn as a pseudo element rather than padding the item,
+   because .fdot is positioned against .fitem and padding would drag the
+   timeline dot off the rail. */
+.fitem.now:before {
+  content: ''; position: absolute; z-index: 0;
+  left: -14px; right: -14px; top: -11px; bottom: 11px;
+  background: var(--accent-halo); border-radius: 9px;
+}
+/* The panel is positioned, so the text needs a stacking position of its own to
+   sit above it. Scoped to the divs so .fdot keeps its absolute placement. */
+.fitem.now > div { position: relative; }
 .fwhen { font: 700 9px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); }
 .fwhen.now { color: var(--accent); }
 .fhead { font: 800 19px var(--sans); letter-spacing: -.028em; margin: 3px 0 4px; font-variant-numeric: tabular-nums; }
@@ -295,7 +314,7 @@ body {
 
 /* ---------- desktop ---------- */
 @media (min-width: 768px) {
-  :root { --pad: 34px; }
+  :root { --pad: 34px; --cell-h: 49px; }
   /* On a phone the shell is the whole viewport and needs no edge. On a desktop
      it is a 720px column on a wide screen, so without a surface it dissolves
      into the browser chrome. Recess the page and lift the shell off it. */
@@ -318,5 +337,5 @@ body {
   .gtbl .wkc { padding-left: 0; }
   .gtbl .wkc:after { display: none; }   /* nothing scrolls behind it here */
   .cellbox { min-width: 64px; padding: 10px 4px; font-size: 13px; }
-  .restcell { width: 44px; min-width: 44px; height: 40px; }
+  .restcell { width: 44px; min-width: 44px; }
 }
