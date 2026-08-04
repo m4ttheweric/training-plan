@@ -1,5 +1,5 @@
 #!/bin/zsh
-export PATH="/Users/matt/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+export PATH="/Users/matt/.local/bin:/Users/matt/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 cd "/Users/matt/Documents/GitHub/training-plan" || exit 1
 
