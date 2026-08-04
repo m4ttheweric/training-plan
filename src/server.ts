@@ -43,6 +43,21 @@ async function serveStatic(pathname: string): Promise<Response> {
 
 let syncing = false;
 
+// The timestamp a sync last finished (success or failure), independent of
+// getLastSyncedDate()'s MAX(start_date_local) -- that reads the newest
+// ACTIVITY's date, not when the app last talked to Strava, so a plan built
+// around "last synced" needs this instead. In-memory only; it resets on
+// restart, which is fine for a personal single-instance app.
+let lastSyncCompletedAt: string | null = null;
+
+// Every page load asks for an auto sync, but navigating between Today,
+// Journal and Plan within a few seconds must not fire three real Strava
+// pulls: Strava allows ~100 requests/15min and 1000/day, and one sync can
+// burn several of those (activity pages + per-activity weather/split
+// backfill). 5 minutes comfortably covers a tab-hopping session while still
+// keeping data fresh across a normal day of checking in on the plan.
+const AUTO_SYNC_MIN_INTERVAL_MS = 5 * 60 * 1000;
+
 const server = Bun.serve({
   port: PORT,
   idleTimeout: 255,
@@ -74,20 +89,34 @@ const server = Bun.serve({
         athleteId: tokens?.athlete_id ?? null,
         athlete: tokens?.athlete_json ? JSON.parse(tokens.athlete_json) : null,
         activityCount: getActivityCount(),
+        // Kept for backwards compatibility -- this is the newest activity's
+        // date, not when a sync last ran. lastSyncCompletedAt below is the
+        // genuine sync timestamp.
         lastSynced: getLastSyncedDate(),
+        lastSyncCompletedAt,
         syncing,
       });
     }
 
     if (path === "/api/sync" && req.method === "POST") {
+      const body = req.headers.get("content-type")?.includes("json")
+        ? await req.json() as { full?: boolean; auto?: boolean }
+        : {};
+      const isAuto = (body as { auto?: boolean }).auto === true;
+
+      // A manual sync (no auto flag) always runs. An auto sync is skipped
+      // outright if one finished within the throttle window, before even
+      // checking whether a sync is currently in flight.
+      if (isAuto && lastSyncCompletedAt !== null &&
+          Date.now() - Date.parse(lastSyncCompletedAt) < AUTO_SYNC_MIN_INTERVAL_MS) {
+        return json({ skipped: true });
+      }
+
       if (syncing) return json({ error: "Sync already in progress" }, 409);
       syncing = true;
-      const body = req.headers.get("content-type")?.includes("json")
-        ? await req.json() as { full?: boolean }
-        : {};
       syncActivities({ full: (body as { full?: boolean }).full })
         .catch((e) => console.error("Sync failed:", e))
-        .finally(() => { syncing = false; });
+        .finally(() => { syncing = false; lastSyncCompletedAt = new Date().toISOString(); });
       return json({ started: true });
     }
 

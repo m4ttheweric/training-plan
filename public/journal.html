@@ -9,7 +9,8 @@
 <body>
 <div class="shell" id="root"></div>
 <script type="module">
-import { esc, fmtMiles, fmtPaceFromSpeed, fmtDuration, fmtDayLabel } from "/lib.js";
+import { esc, fmtMiles, fmtPaceFromSpeed, fmtDuration, fmtDayLabel, localDate } from "/lib.js";
+import { autoSync, manualSync, waitForSyncDone } from "/sync.js";
 
 const NAV = '<nav class="nav">' +
   '<a href="/">Today</a>' +
@@ -33,12 +34,24 @@ function runItem(it, isTarget) {
     '</a>';
 }
 
+/* status.lastSyncCompletedAt is a real timestamp (when a sync last actually
+   finished), not just a calendar date, so this shows the time alongside the
+   day -- localDate() first, to read the day the same local-timezone-safe
+   way fmtDayLabel expects, rather than slicing the UTC ISO string directly. */
+function fmtSyncedAt(iso) {
+  if (!iso) return "Never";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Never";
+  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return fmtDayLabel(localDate(d)) + " " + time;
+}
+
 /* Sync header: last-synced state, a sync trigger, and a Strava connect link
    when the token has gone stale. This is the one mutating control in the
    app -- it does not violate the "no mark done" rule, since it only pulls
    fresh Strava data and workout completion still comes from Strava. */
 function syncHeader(status) {
-  const synced = status.lastSynced ? fmtDayLabel(status.lastSynced) : "Never";
+  const synced = fmtSyncedAt(status.lastSyncCompletedAt);
   let h = '<div class="pad syncbar">';
   h += '<div><div class="kicker">Sync</div><div class="body">Last synced ' + esc(synced) + '</div></div>';
   h += '<div class="syncctl">';
@@ -117,7 +130,7 @@ function render(status, items) {
   if (!btn) return;
   if (status.syncing) {
     btn.disabled = true;
-    waitForSync().then(main).catch(() => { btn.disabled = false; btn.textContent = "Sync now"; });
+    waitForSyncDone().then(main).catch(() => { btn.disabled = false; btn.textContent = "Sync now"; });
   } else {
     btn.addEventListener("click", () => runSync(btn));
   }
@@ -127,24 +140,11 @@ async function runSync(btn) {
   btn.disabled = true;
   btn.textContent = "Syncing...";
   try {
-    const res = await fetch("/api/sync", { method: "POST" });
-    if (!res.ok && res.status !== 409) throw new Error("Sync failed to start");
-    await waitForSync();
+    await manualSync();
     await main();
   } catch (e) {
     btn.disabled = false;
     btn.textContent = "Sync now";
-  }
-}
-
-/* POST /api/sync starts the pull in the background and returns immediately,
-   so poll GET /api/status until its "syncing" flag clears before refreshing
-   the feed. Bounded so a stuck sync does not poll forever. */
-async function waitForSync() {
-  for (let i = 0; i < 60; i++) {
-    await new Promise(r => setTimeout(r, 1500));
-    const status = await fetch("/api/status").then(r => r.json());
-    if (!status.syncing) return;
   }
 }
 
@@ -175,6 +175,12 @@ async function main() {
   if (!didInitialLoad) {
     didInitialLoad = true;
     scrollToToday();
+    // If a sync is already in flight (from another tab, say), render()
+    // above is already waiting on it via waitForSyncDone().then(main); do
+    // not also fire our own auto sync on top of it.
+    if (!status.syncing) {
+      autoSync().then((result) => { if (result.ran) main(); });
+    }
   }
 }
 

@@ -10,6 +10,7 @@
 <div class="shell" id="root"></div>
 <script type="module">
 import { esc, fmtDayLabel, localDate } from "/lib.js";
+import { autoSync } from "/sync.js";
 
 const NAV = '<nav class="nav">' +
   '<a href="/">Today</a>' +
@@ -81,9 +82,22 @@ function render(data) {
   document.getElementById("root").innerHTML = h;
 }
 
-fetch("/api/plan/status").then(r => r.json()).then(render).catch(e => {
+function loadPlan() {
+  return fetch("/api/plan/status").then(r => r.json());
+}
+
+/* First paint renders from whatever data is already on disk; the sync
+   below runs in the background and only triggers a quiet re-fetch if it
+   actually did something. No spinner, no clearing the page mid-sync. */
+loadPlan().then(render).catch(e => {
   document.getElementById("root").innerHTML = NAV +
     '<div class="pad"><div class="body">Could not load: ' + esc(e.message) + '</div></div>';
+});
+
+autoSync().then((result) => {
+  if (!result.ran) return;
+  // Quiet refresh: keep showing the last good render if this fails.
+  loadPlan().then(render).catch(() => {});
 });
 </script>
 </body>
