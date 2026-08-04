@@ -223,14 +223,17 @@ body {
 .wkbar i { display: block; height: 100%; background: var(--good); }
 
 /* ---------- journal feed ---------- */
-.feed { position: relative; padding-left: 26px; }
+/* The gutter is wider than the dot strictly needs so the today panel has room
+   to inset its text without reaching the timeline. Kept on .feed rather than
+   on the highlighted item so every entry's text stays in one column. */
+.feed { position: relative; padding-left: 34px; }
 .feed:before {
   content: ''; position: absolute; left: 5px; top: 10px; bottom: 10px;
   width: 2px; background: var(--hair);
 }
 .fitem { position: relative; padding: 0 0 22px; display: block; color: inherit; text-decoration: none; }
 .fdot {
-  position: absolute; left: -26px; top: 4px; width: 12px; height: 12px;
+  position: absolute; left: -34px; top: 4px; width: 12px; height: 12px;
   border-radius: 50%; background: var(--paper); border: 3px solid var(--hair);
 }
 .fdot.run   { background: var(--run-fg);  border-color: var(--run-fg); }
@@ -242,14 +245,13 @@ body {
    catch the eye. Drawn as a pseudo element rather than padding the item,
    because .fdot is positioned against .fitem and padding would drag the
    timeline dot off the rail. */
-/* Starts clear of the dot rather than at -14px, where it met the dot's right
-   edge exactly and its 4px halo bled across the boundary: same colour inside
-   the panel, exposed outside it, so the dot read as half swallowed. The
-   timeline column stays the timeline's, the panel stays the text's. */
+/* Insets 14px on every side (the bottom accounts for .fitem's own 22px of
+   padding). It stops short of the dot's 4px halo rather than meeting it, which
+   is what made the dot read as half swallowed when the two edges coincided. */
 .fitem.now:before {
   content: ''; position: absolute; z-index: 0;
-  left: -4px; right: -14px; top: -11px; bottom: 11px;
-  background: var(--accent-halo); border-radius: 9px;
+  left: -14px; right: -14px; top: -14px; bottom: 8px;
+  background: var(--accent-halo); border-radius: 10px;
 }
 /* The panel is positioned, so the text needs a stacking position of its own to
    sit above it. Scoped to the divs so .fdot keeps its absolute placement. */
