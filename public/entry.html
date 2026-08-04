@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entry</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="shell" id="root"></div>
+<script type="module">
+import { esc, fmtMiles, fmtPaceFromSpeed, fmtDayLabel, renderMarkdown } from "/lib.js";
+
+const NAV = '<nav class="nav">' +
+  '<a href="/">Today</a>' +
+  '<a href="/journal.html" class="on">Journal</a>' +
+  '<a href="/plan.html">Plan</a></nav>';
+
+const id = new URLSearchParams(location.search).get("id");
+
+function splitRows(splits) {
+  const paces = splits.map(s => s.average_speed > 0 ? 1609.34 / s.average_speed : 0);
+  const slowest = Math.max(...paces);
+  return splits.map((s, i) => {
+    const width = slowest > 0 ? Math.round((paces[i] / slowest) * 100) : 0;
+    return '<div class="mrow"><span class="mi">' + (i + 1) + '</span>' +
+      '<span class="track"><i class="' + (paces[i] === slowest ? "slow" : "") + '" style="width:' + width + '%"></i></span>' +
+      '<span class="pc">' + fmtPaceFromSpeed(s.average_speed) + '</span>' +
+      '<span class="hr">' + (s.average_heartrate ? Math.round(s.average_heartrate) : "--") + '</span></div>';
+  }).join("");
+}
+
+/* Only render cells the feedback actually carries. Sections with no data are
+   omitted rather than shown empty. */
+function deltaCells(an) {
+  if (!an || !an.deltas) return "";
+  const d = an.deltas, cells = [];
+  if (d.pace_vs_baseline_s_per_mi != null)
+    cells.push(['<b class="good">' + d.pace_vs_baseline_s_per_mi + 's</b>', "/mi vs easy baseline"]);
+  if (d.hr_vs_baseline != null)
+    cells.push(['<b class="good">' + d.hr_vs_baseline + '</b>',
+      "bpm vs " + (an.baseline && an.baseline.avg_hr != null ? an.baseline.avg_hr : "baseline")]);
+  if (d.feels_temp_vs_baseline_f != null)
+    cells.push(['<b>' + d.feels_temp_vs_baseline_f + '&deg;</b>', "feels vs baseline"]);
+  if (an.cadence_spm != null)
+    cells.push(['<b>' + an.cadence_spm + '</b>', "cadence"]);
+  if (!cells.length) return "";
+  return '<div class="sec-h">vs baseline</div><div class="deltas">' +
+    cells.map(c => '<div class="dcell">' + c[0] + '<span>' + c[1] + '</span></div>').join("") + '</div>';
+}
+
+async function load() {
+  const acts = await fetch("/api/activities?limit=400").then(r => r.json());
+  const a = acts.find(x => String(x.strava_id) === String(id));
+  if (!a) {
+    document.getElementById("root").innerHTML = NAV + '<div class="pad"><div class="body">Activity not found.</div></div>';
+    return;
+  }
+  const splits = await fetch("/api/activities/" + id + "/splits").then(r => r.json()).then(j => j.splits || []).catch(() => []);
+  const fb = await fetch("/api/activities/" + id + "/feedback").then(r => r.ok ? r.json() : null).catch(() => null);
+  const an = fb && fb.analysis_json ? safeParse(fb.analysis_json) : null;
+
+  let h = NAV;
+  h += '<div class="block">';
+  h += '<div class="kicker">' + esc(fmtDayLabel(a.start_date_local)) + ' &middot; ' + esc(a.name) + '</div>';
+  h += '<div class="big" style="margin-top:11px"><b>' + fmtMiles(a.distance) + '</b><em>mi</em>' +
+       '<b class="sec">' + fmtPaceFromSpeed(a.average_speed) + '</b><em>/mi</em></div>';
+  h += '<div class="chips">';
+  if (a.average_heartrate) h += '<div class="chip">HR <b>' + Math.round(a.average_heartrate) + '</b></div>';
+  if (a.max_heartrate) h += '<div class="chip">max <b>' + Math.round(a.max_heartrate) + '</b></div>';
+  if (a.weather_feels != null) h += '<div class="chip">feels <b>' + Math.round(a.weather_feels) + '&deg;</b></div>';
+  if (a.total_elevation_gain) h += '<div class="chip">gain <b>' + Math.round(a.total_elevation_gain * 3.28084) + 'ft</b></div>';
+  h += '</div></div>';
+
+  h += '<div class="pad">';
+  if (splits.length) h += '<div class="sec-h">Per mile</div>' + splitRows(splits);
+  h += deltaCells(an);
+  if (fb && fb.narrative) h += '<div class="body" style="margin-top:15px">' + renderMarkdown(fb.narrative) + '</div>';
+  else if (!splits.length) h += '<div class="body">No analysis for this activity yet.</div>';
+  h += '</div>';
+
+  document.getElementById("root").innerHTML = h;
+}
+
+function safeParse(s) { try { return JSON.parse(s); } catch { return null; } }
+
+load().catch(e => {
+  document.getElementById("root").innerHTML = NAV +
+    '<div class="pad"><div class="body">Could not load: ' + esc(e.message) + '</div></div>';
+});
+</script>
+</body>
+</html>
