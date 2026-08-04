@@ -1,4 +1,5 @@
 import { getPlanStatus } from "./plan";
+import { localDate } from "../public/lib.js";
 
 /* One flat, newest-first stream. Future days sit above today, greyed by the
    client. Week summaries are emitted as rules between days rather than as a
@@ -60,6 +61,6 @@ export function buildJournal(status: any, todayIso: string) {
 }
 
 export function getJournal(todayIso?: string) {
-  const now = todayIso ?? new Date().toISOString().slice(0, 10);
+  const now = todayIso ?? localDate();
   return buildJournal(getPlanStatus(undefined, now), now);
 }

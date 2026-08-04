@@ -9,7 +9,7 @@
 <body>
 <div class="shell" id="root"></div>
 <script type="module">
-import { esc, fmtDayLabel } from "/lib.js";
+import { esc, fmtDayLabel, localDate } from "/lib.js";
 
 const NAV = '<nav class="nav">' +
   '<a href="/">Today</a>' +
@@ -17,7 +17,7 @@ const NAV = '<nav class="nav">' +
   '<a href="/plan.html" class="on">Plan</a></nav>';
 
 const HEADS = ["Mon","Tue","Wed","Thu","Fri","Sat"];
-const today = new Date().toISOString().slice(0, 10);
+const today = localDate();
 
 function cellClass(type) {
   if (type === "run") return "run";

@@ -1,8 +1,19 @@
 import { expect, test, describe } from "bun:test";
 import {
   esc, fmtMiles, fmtPaceFromSpeed, fmtDuration,
-  fmtDayLabel, fmtWeekday, renderMarkdown,
+  fmtDayLabel, fmtWeekday, renderMarkdown, localDate,
 } from "../public/lib.js";
+
+/* Run a one-line script under an explicit TZ in a subprocess. localDate's
+   whole point is to depend on the local timezone, so testing it must not
+   depend on whatever timezone the test runner happens to be in. */
+function runIn(tz: string, expr: string): string {
+  const p = Bun.spawnSync({
+    cmd: ["bun", "-e", expr],
+    env: { ...process.env, TZ: tz },
+  });
+  return new TextDecoder().decode(p.stdout).trim();
+}
 
 describe("formatting", () => {
   test("fmtMiles converts metres to two decimals", () => {
@@ -35,6 +46,18 @@ describe("formatting", () => {
       "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;"
     );
     expect(esc("a & b")).toBe("a &amp; b");
+  });
+});
+
+describe("localDate", () => {
+  test("returns the local calendar date, not the UTC date", () => {
+    // 00:25 UTC on Aug 4 is still the evening of Aug 3 in Chicago.
+    const libPath = new URL("../public/lib.js", import.meta.url).pathname;
+    const expr =
+      `const {localDate} = await import(${JSON.stringify(libPath)});` +
+      'console.log(localDate(new Date("2026-08-04T00:25:00Z")));';
+    expect(runIn("America/Chicago", expr)).toBe("2026-08-03");
+    expect(runIn("UTC", expr)).toBe("2026-08-04");
   });
 });
 

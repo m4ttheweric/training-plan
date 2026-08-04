@@ -1,5 +1,6 @@
 import { getPlanStatus } from "./plan";
 import { getSplitsForActivity, getFeedbackForActivity } from "./db";
+import { localDate } from "../public/lib.js";
 
 export interface TodayLookup {
   splits(stravaId: number): unknown[];
@@ -97,7 +98,7 @@ function safeParse(s: string) {
 }
 
 export function getToday(todayIso?: string) {
-  const now = todayIso ?? new Date().toISOString().slice(0, 10);
+  const now = todayIso ?? localDate();
   return buildToday(getPlanStatus(undefined, now), now, {
     splits: (id) => getSplitsForActivity(id),
     feedback: (id) => getFeedbackForActivity(id),

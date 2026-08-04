@@ -5,6 +5,15 @@ const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const METRES_PER_MILE = 1609.34;
 
+/* The calendar date as the user's local wall clock sees it, not the UTC
+   date. Using toISOString().slice(0, 10) instead would report tomorrow's
+   date starting at 19:00 CDT / 18:00 CST, since it reads the UTC day. */
+export function localDate(d = new Date()) {
+  return d.getFullYear() + "-" +
+    String(d.getMonth() + 1).padStart(2, "0") + "-" +
+    String(d.getDate()).padStart(2, "0");
+}
+
 export function esc(s) {
   return String(s ?? "")
     .replace(/&/g, "&amp;")

@@ -1,6 +1,7 @@
 import { join } from "path";
 import { readdirSync, readFileSync } from "fs";
 import { getActivities } from "./db";
+import { localDate } from "../public/lib.js";
 
 const PLANS_DIR = join(import.meta.dir, "../plans");
 
@@ -94,13 +95,13 @@ export function getAvailablePlans(): Array<{ id: string; name: string; startDate
 function dateStr(weekStart: string, dayOffset: number): string {
   const d = new Date(weekStart + "T12:00:00");
   d.setDate(d.getDate() + dayOffset);
-  return d.toISOString().slice(0, 10);
+  return localDate(d);
 }
 
 function weekStartDate(planStart: string, weekIndex: number): string {
   const d = new Date(planStart + "T12:00:00");
   d.setDate(d.getDate() + weekIndex * 7);
-  return d.toISOString().slice(0, 10);
+  return localDate(d);
 }
 
 function daysBetween(a: string, b: string): number {
@@ -124,7 +125,7 @@ function phaseForWeek(plan: PlanFile, weekNum: number): string {
 
 export function getPlanStatus(planId?: string, today?: string): PlanStatusResponse {
   const plan = loadPlan(planId);
-  const now = today ?? new Date().toISOString().slice(0, 10);
+  const now = today ?? localDate();
 
   const weekStarts = plan.weeks.map((_, i) => weekStartDate(plan.startDate, i));
 
