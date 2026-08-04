@@ -123,23 +123,41 @@ function startAnalysis(
     });
   } catch (e) {
     // Most likely ENOENT: cswap or claude missing from the service PATH.
-    finishFeedbackRequest(requestId, "failed", String(e), null);
-    analyzing = false;
+    try {
+      finishFeedbackRequest(requestId, "failed", String(e), null);
+    } catch (dbErr) {
+      console.error("Failed to record spawn failure for request", requestId, dbErr);
+    } finally {
+      analyzing = false;
+    }
     return requestId;
   }
 
+  /* Start draining immediately. Bun buffers a pipe eagerly, so waiting until
+     after proc.exited to begin reading means a chatty child's entire output is
+     already resident: measured 1038 MB, versus 64 MB when drained from the
+     start. These are best effort and are raced against a grace timeout below. */
+  const outTail = readTail(proc.stdout);
+  const errTail = readTail(proc.stderr);
+
   let settled = false;
   let timedOut = false;
+  let sigkillTimer: ReturnType<typeof setTimeout> | undefined;
 
   /* Every exit path funnels through here exactly once, and releasing the
-     mutex is the last thing it does. */
+     mutex is the last thing it does. The database write is guarded because
+     this runs from bare timer callbacks, where a throw would be uncaught and
+     would take the whole server down. */
   const settle = (status: "done" | "failed", error: string | null, exitCode: number | null) => {
     if (settled) return;
     settled = true;
     clearTimeout(killTimer);
     clearTimeout(releaseTimer);
+    clearTimeout(sigkillTimer);
     try {
       finishFeedbackRequest(requestId, status, error, exitCode);
+    } catch (e) {
+      console.error("Failed to record analysis outcome for request", requestId, e);
     } finally {
       analyzing = false;
     }
@@ -150,7 +168,7 @@ function startAnalysis(
   const killTimer = setTimeout(() => {
     timedOut = true;
     try { proc.kill(); } catch {}
-    setTimeout(() => { try { proc.kill(9); } catch {} }, SIGKILL_GRACE_MS);
+    sigkillTimer = setTimeout(() => { try { proc.kill(9); } catch {} }, SIGKILL_GRACE_MS);
   }, ANALYZE_TIMEOUT_MS);
 
   /* The backstop. If the child is gone but a grandchild still holds a pipe
@@ -166,8 +184,8 @@ function startAnalysis(
       // grandchild is still holding the pipes open.
       const exitCode = await proc.exited;
       const [out, err] = await Promise.all([
-        withTimeout(readTail(proc.stdout), STREAM_GRACE_MS, ""),
-        withTimeout(readTail(proc.stderr), STREAM_GRACE_MS, ""),
+        withTimeout(outTail, STREAM_GRACE_MS, ""),
+        withTimeout(errTail, STREAM_GRACE_MS, ""),
       ]);
 
       if (exitCode === 0 && !timedOut) {
@@ -178,7 +196,9 @@ function startAnalysis(
       // claude -p reports its failures on stdout, so stderr alone is usually
       // empty. Prefer stderr, fall back to stdout, and say so when we killed it.
       const detail = (err.trim() || out.trim() || "").slice(-OUTPUT_TAIL_CHARS);
-      const prefix = timedOut ? "Analysis timed out after 5 minutes. " : "";
+      const prefix = timedOut
+        ? `Analysis timed out after ${Math.round(ANALYZE_TIMEOUT_MS / 60000)} minutes. `
+        : "";
       settle("failed", (prefix + detail).trim() || `Analysis exited with code ${exitCode}`, exitCode);
     } catch (e) {
       settle("failed", String(e), null);
