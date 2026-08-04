@@ -60,7 +60,7 @@ const server = Bun.serve({
       if (!code) return json({ error: "Missing code parameter" }, 400);
       try {
         const data = await exchangeCode(code);
-        return Response.redirect("/activities.html?auth=success&name=" + encodeURIComponent(data.athlete.firstname), 302);
+        return Response.redirect("/?auth=success&name=" + encodeURIComponent(data.athlete.firstname), 302);
       } catch (e) {
         return json({ error: String(e) }, 500);
       }
