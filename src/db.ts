@@ -1,6 +1,12 @@
 import { Database } from "bun:sqlite";
 import { join } from "path";
 
+/* The named parameter object bun:sqlite accepts. Deliberately not
+   Record<string, SQLQueryBindings>: that type already includes a record, so
+   using it as the value type nests a record inside a record and .run() rejects
+   it. Values here are scalars only. */
+type Bindings = Record<string, string | bigint | NodeJS.TypedArray | number | boolean | null>;
+
 const DB_PATH = join(import.meta.dir, "../data/training.db");
 const db = new Database(DB_PATH, { create: true });
 
@@ -121,6 +127,14 @@ export function saveTokens(accessToken: string, refreshToken: string, expiresAt:
   `).run(accessToken, refreshToken, expiresAt, athleteId ?? null, athleteJson ?? null);
 }
 
+/* Strava activity JSON is untyped, so `a.field ?? null` widens to `{} | null`
+   even though every value bound below is a scalar. Naming that gap once here
+   beats scattering casts through a 28 key binding object. This changes no
+   runtime behaviour: bun:sqlite still rejects a non scalar if one slips in. */
+function bindings(o: Record<string, unknown>): Bindings {
+  return o as Bindings;
+}
+
 export function upsertActivity(a: Record<string, unknown>) {
   db.query(`
     INSERT INTO activities (
@@ -145,7 +159,7 @@ export function upsertActivity(a: Record<string, unknown>) {
       calories = $calories, average_cadence = $average_cadence,
       start_lat = $start_lat, start_lng = $start_lng,
       raw_json = $raw_json, synced_at = datetime('now')
-  `).run({
+  `).run(bindings({
     $strava_id: a.id,
     $name: a.name ?? null,
     $type: a.type ?? null,
@@ -172,12 +186,12 @@ export function upsertActivity(a: Record<string, unknown>) {
     $raw_json: JSON.stringify(a),
     $start_lat: (a.start_latlng as number[])?.[0] ?? null,
     $start_lng: (a.start_latlng as number[])?.[1] ?? null,
-  });
+  }));
 }
 
 export function getActivities(opts: { type?: string; after?: string; before?: string; limit?: number; offset?: number } = {}) {
   const conditions: string[] = [];
-  const params: Record<string, unknown> = {};
+  const params: Bindings = {};
 
   if (opts.type) { conditions.push("type = $type"); params.$type = opts.type; }
   if (opts.after) { conditions.push("start_date_local >= $after"); params.$after = opts.after; }
@@ -200,7 +214,7 @@ export function getActivities(opts: { type?: string; after?: string; before?: st
 
 export function getWeeklyStats(opts: { after?: string; type?: string } = {}) {
   const conditions: string[] = [];
-  const params: Record<string, unknown> = {};
+  const params: Bindings = {};
   if (opts.after) { conditions.push("start_date_local >= $after"); params.$after = opts.after; }
   if (opts.type) { conditions.push("type = $type"); params.$type = opts.type; }
   const where = conditions.length ? "WHERE " + conditions.join(" AND ") : "";
@@ -354,7 +368,7 @@ export function upsertFeedback(stravaId: number, feedback: FeedbackInput): void 
 
 export function updateActivityDetail(stravaId: number, detail: { calories?: number; suffer_score?: number; description?: string }): void {
   const sets: string[] = [];
-  const params: Record<string, unknown> = { $id: stravaId };
+  const params: Bindings = { $id: stravaId };
   if (detail.calories != null) { sets.push("calories = COALESCE(calories, $cal)"); params.$cal = detail.calories; }
   if (detail.suffer_score != null) { sets.push("suffer_score = COALESCE(suffer_score, $ss)"); params.$ss = detail.suffer_score; }
   if (detail.description != null) { sets.push("description = COALESCE(description, $desc)"); params.$desc = detail.description; }

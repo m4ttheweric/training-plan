@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "bun --hot src/server.ts",
     "start": "bun src/server.ts",
-    "test": "bun test"
+    "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit && bun test"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "typescript": "^7.0.2"
   }
 }

@@ -342,6 +342,11 @@ const server = Bun.serve({
           return json({ error: e instanceof Error ? e.message : String(e) }, 500);
         }
 
+        /* decideAnalyzeRequest already 404s a null activity, but it takes the
+           type rather than the row, so the compiler cannot see the two are
+           linked. Restating it here is redundant at runtime and cheap. */
+        if (!activity) return json({ error: "Not a run" }, 404);
+
         const date = String(activity.start_date_local ?? "").slice(0, 10);
         if (!date) return json({ error: "Activity has no date" }, 500);
 
