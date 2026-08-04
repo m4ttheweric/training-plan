@@ -249,6 +249,15 @@ body {
 .nav a { color: var(--ink3); text-decoration: none; }
 .nav a.on { color: var(--ink); border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
 
+/* ---------- journal sync header ---------- */
+.syncbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; border-bottom: 1px solid var(--hair);
+}
+.syncctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chipbtn { appearance: none; border: none; cursor: pointer; font: inherit; text-decoration: none; }
+.chipbtn:disabled { opacity: .55; cursor: default; }
+
 /* ---------- week strip (Today page) ---------- */
 .wstrip { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--hair); }
 .wstrip .lab { font: 800 10px var(--sans); letter-spacing: .1em; text-transform: uppercase; width: 54px; }
