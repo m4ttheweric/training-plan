@@ -64,6 +64,44 @@ let lastSyncCompletedAt: string | null = null;
 // keeping data fresh across a normal day of checking in on the plan.
 const AUTO_SYNC_MIN_INTERVAL_MS = 5 * 60 * 1000;
 
+/* A killed claude can leave grandchildren (a Bash tool shell, an in flight
+   curl) holding the stderr write end open, so a read that waits for EOF may
+   never settle. Stream reads are therefore best effort and everything below
+   is bounded by a timer that cannot itself hang. */
+const STREAM_GRACE_MS = 5 * 1000;
+const SIGKILL_GRACE_MS = 10 * 1000;
+const RELEASE_GRACE_MS = 20 * 1000;
+const OUTPUT_TAIL_CHARS = 4000;
+
+/* Drains a stream to completion but keeps only the last OUTPUT_TAIL_CHARS, so
+   a chatty child cannot balloon server memory. The tail is the useful end for
+   diagnosis. */
+async function readTail(stream: ReadableStream<Uint8Array> | null | undefined): Promise<string> {
+  if (!stream) return "";
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let tail = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      tail = (tail + decoder.decode(value, { stream: true })).slice(-OUTPUT_TAIL_CHARS);
+    }
+  } catch {
+    // The stream closed under us. Whatever we already have is what we report.
+  } finally {
+    try { reader.cancel(); } catch {}
+  }
+  return tail;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 /* Spawns the pinned headless Claude session and returns immediately. The
    caller polls GET /api/activities/:id/analyze for the outcome.
 
@@ -90,25 +128,60 @@ function startAnalysis(
     return requestId;
   }
 
-  const killTimer = setTimeout(() => proc.kill(), ANALYZE_TIMEOUT_MS);
+  let settled = false;
+  let timedOut = false;
+
+  /* Every exit path funnels through here exactly once, and releasing the
+     mutex is the last thing it does. */
+  const settle = (status: "done" | "failed", error: string | null, exitCode: number | null) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(killTimer);
+    clearTimeout(releaseTimer);
+    try {
+      finishFeedbackRequest(requestId, status, error, exitCode);
+    } finally {
+      analyzing = false;
+    }
+  };
+
+  /* SIGTERM at the deadline, then SIGKILL if it is ignored, so the timeout is
+     a real cap rather than a polite request. */
+  const killTimer = setTimeout(() => {
+    timedOut = true;
+    try { proc.kill(); } catch {}
+    setTimeout(() => { try { proc.kill(9); } catch {} }, SIGKILL_GRACE_MS);
+  }, ANALYZE_TIMEOUT_MS);
+
+  /* The backstop. If the child is gone but a grandchild still holds a pipe
+     open, the reads below may never settle. This releases the mutex anyway so
+     one wedged run cannot disable the feature until the next restart. */
+  const releaseTimer = setTimeout(() => {
+    settle("failed", "Analysis timed out and did not exit cleanly.", null);
+  }, ANALYZE_TIMEOUT_MS + SIGKILL_GRACE_MS + RELEASE_GRACE_MS);
 
   (async () => {
     try {
-      const stderr = await new Response(proc.stderr).text();
+      // proc.exited tracks the direct child, so it settles even when a
+      // grandchild is still holding the pipes open.
       const exitCode = await proc.exited;
-      if (exitCode === 0) {
-        finishFeedbackRequest(requestId, "done", null, 0);
-      } else {
-        const tail = stderr.slice(-2000).trim();
-        finishFeedbackRequest(
-          requestId, "failed", tail || `Analysis exited with code ${exitCode}`, exitCode,
-        );
+      const [out, err] = await Promise.all([
+        withTimeout(readTail(proc.stdout), STREAM_GRACE_MS, ""),
+        withTimeout(readTail(proc.stderr), STREAM_GRACE_MS, ""),
+      ]);
+
+      if (exitCode === 0 && !timedOut) {
+        settle("done", null, 0);
+        return;
       }
+
+      // claude -p reports its failures on stdout, so stderr alone is usually
+      // empty. Prefer stderr, fall back to stdout, and say so when we killed it.
+      const detail = (err.trim() || out.trim() || "").slice(-OUTPUT_TAIL_CHARS);
+      const prefix = timedOut ? "Analysis timed out after 5 minutes. " : "";
+      settle("failed", (prefix + detail).trim() || `Analysis exited with code ${exitCode}`, exitCode);
     } catch (e) {
-      finishFeedbackRequest(requestId, "failed", String(e), null);
-    } finally {
-      clearTimeout(killTimer);
-      analyzing = false;
+      settle("failed", String(e), null);
     }
   })();
 
