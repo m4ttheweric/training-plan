@@ -1,0 +1,7 @@
+{
+  "name": "training",
+  "port": 11000,
+  "commands": {
+    "start": "bun src/server.ts"
+  }
+}
