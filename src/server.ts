@@ -4,6 +4,7 @@ import { syncActivities } from "./strava/sync";
 import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, getTokens, getSplitsForActivity, getFeedbackForActivity, upsertFeedback, createFeedbackRequest, finishFeedbackRequest, getLatestFeedbackRequest, getActivityByStravaId, upsertDailyMetrics, getDailyMetricsWide, getDailyMetricsSummary } from "./db";
 import { parseHealthExport } from "./health";
 import { getPlanStatus, getAvailablePlans } from "./plan";
+import { getRecovery } from "./recovery";
 import { getToday } from "./today";
 import { getJournal } from "./journal";
 import { ANALYZE_TIMEOUT_MS, buildAnalyzeCommand, buildSpawnEnv, decideAnalyzeRequest, normalizeNote, resolveAccount } from "./analyze";
@@ -409,6 +410,12 @@ const server = Bun.serve({
       const after = url.searchParams.get("after") ?? undefined;
       const type = url.searchParams.get("type") ?? undefined;
       return json(getWeeklyStats({ after, type }));
+    }
+
+    if (path === "/api/stats/recovery") {
+      const planId = url.searchParams.get("plan") ?? undefined;
+      const asOf = url.searchParams.get("as_of") ?? undefined;
+      return json(getRecovery(planId, asOf));
     }
 
     // --- Static files ---
