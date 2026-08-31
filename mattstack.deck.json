@@ -2,6 +2,8 @@
   "name": "training",
   "port": 11000,
   "commands": {
-    "start": "bun src/server.ts"
+    "start": "bun src/server.ts",
+    "build": "bun run typecheck",
+    "deploy": "bun run typecheck && deck restart training"
   }
 }
