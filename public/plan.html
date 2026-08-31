@@ -45,7 +45,47 @@ function cell(day) {
   return '<td><div class="cellbox ' + (isToday ? "now" : cellClass(day.plan.type)) + '">' + label + tick + '</div></td>';
 }
 
-function render(data) {
+function recoverySection(rec) {
+  if (!rec || !rec.weeks || !rec.weeks.length) return "";
+  const maxMiles = Math.max(1, ...rec.weeks.map(w => w.miles || 0));
+  const target = rec.target || 8;
+  const adequate = rec.adequate || 7;
+
+  let h = '<div class="sec-h">Sleep vs load</div>';
+  h += '<div class="body" style="margin-bottom:14px">Weekly running miles (load) over nights slept (recovery). ' +
+       'Sleep drives the overnight tissue repair that training banks, so a long load bar sitting on a short ' +
+       'red sleep bar is a week that cost more than it built.</div>';
+
+  h += '<div class="chips" style="margin:0 0 16px">';
+  h += '<span class="chip light">plan avg <b>' + (rec.planAvgSleep != null ? rec.planAvgSleep.toFixed(1) : "--") + 'h</b></span>';
+  h += '<span class="chip light">weeks &ge;' + adequate + 'h <b>' + rec.weeksAtTarget + '/' + rec.weeksWithSleep + '</b></span>';
+  h += '</div>';
+
+  rec.weeks.forEach((w) => {
+    const isNow = !!w.current;
+    const loadPct = Math.round((Math.max(0, w.miles || 0) / maxMiles) * 100);
+    let sval, sleepPct = 0, band = "";
+    if (w.nights > 0 && w.avgSleep != null) {
+      sleepPct = Math.min(100, Math.round((w.avgSleep / target) * 100));
+      band = w.avgSleep >= adequate ? "ok" : (w.avgSleep < 6 ? "low" : "");
+      const deep = w.avgDeep != null ? Math.round(w.avgDeep * 60) + "m deep &middot; " : "";
+      sval = '<div class="v">' + w.avgSleep.toFixed(1) + 'h<small>' + deep + w.nights + '/7</small></div>';
+    } else {
+      sval = '<div class="v none">--<small>no sleep</small></div>';
+    }
+
+    h += '<div class="slwk">';
+    h += '<div class="lab' + (isNow ? " now" : "") + '">' + w.week + (w.recovery ? '<small>rec</small>' : "") + '</div>';
+    h += '<div class="bars">';
+    h += '<div class="tr"><span class="k">mi</span><div class="mtr"><i class="load" style="width:' + loadPct + '%"></i></div>' +
+         '<div class="v">' + (w.miles || 0).toFixed(1) + '</div></div>';
+    h += '<div class="tr"><span class="k">slp</span><div class="mtr"><i class="' + band + '" style="width:' + sleepPct + '%"></i></div>' + sval + '</div>';
+    h += '</div></div>';
+  });
+  return h;
+}
+
+function render(data, rec) {
   let h = NAV;
   const race = data.plan.race;
 
@@ -73,6 +113,8 @@ function render(data) {
   }
   h += '</table></div>';
 
+  h += recoverySection(rec);
+
   for (const p of data.plan.phases) {
     h += '<div class="sec-h">' + esc(p.name) + ' &middot; ' + esc(p.tag) + '</div>';
     h += '<div class="body"><p>' + esc(p.description) + '</p></div>';
@@ -86,14 +128,21 @@ function render(data) {
   document.getElementById("root").innerHTML = h;
 }
 
+/* Recovery is a best-effort companion to the plan grid: if its fetch fails the
+   page still renders the plan, just without the scorecard. */
 function loadPlan() {
-  return fetch("/api/plan/status").then(r => r.json());
+  return Promise.all([
+    fetch("/api/plan/status").then(r => r.json()),
+    fetch("/api/stats/recovery").then(r => r.json()).catch(() => null),
+  ]);
 }
+
+function paint([data, rec]) { render(data, rec); }
 
 /* First paint renders from whatever data is already on disk; the sync
    below runs in the background and only triggers a quiet re-fetch if it
    actually did something. No spinner, no clearing the page mid-sync. */
-loadPlan().then(render).catch(e => {
+loadPlan().then(paint).catch(e => {
   document.getElementById("root").innerHTML = NAV +
     '<div class="pad"><div class="body">Could not load: ' + esc(e.message) + '</div></div>';
 });
@@ -101,7 +150,7 @@ loadPlan().then(render).catch(e => {
 autoSync().then((result) => {
   if (!result.ran) return;
   // Quiet refresh: keep showing the last good render if this fails.
-  loadPlan().then(render).catch(() => {});
+  loadPlan().then(paint).catch(() => {});
 });
 </script>
 </body>

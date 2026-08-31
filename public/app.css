@@ -222,6 +222,26 @@ body {
 .wkbar { height: 4px; background: var(--wash); border-radius: 2px; overflow: hidden; margin-top: 3px; }
 .wkbar i { display: block; height: 100%; background: var(--good); }
 
+/* ---------- recovery scorecard (Plan page) ---------- */
+/* One row per started week: a load bar over a sleep bar, so a high-mileage week
+   sitting on a short red sleep bar reads as the recovery deficit at a glance. */
+.slwk { display: flex; align-items: center; gap: 11px; padding: 10px 0; border-top: 1px solid var(--hair); }
+.slwk:first-of-type { border-top: none; }
+.slwk .lab { width: 30px; font: 800 12px var(--sans); color: var(--ink2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.slwk .lab.now { color: var(--accent); }
+.slwk .lab small { display: block; font: 700 7px var(--sans); letter-spacing: .05em; text-transform: uppercase; color: var(--ink3); }
+.slwk .bars { flex: 1; min-width: 0; display: grid; gap: 5px; }
+.slwk .tr { display: grid; grid-template-columns: 22px 1fr 92px; gap: 8px; align-items: center; }
+.slwk .tr .k { font: 700 7.5px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ink3); }
+.slwk .mtr { height: 6px; background: var(--wash); border-radius: 3px; overflow: hidden; }
+.slwk .mtr i { display: block; height: 100%; border-radius: 3px; background: var(--ink3); }
+.slwk .mtr i.load { background: var(--accent); }
+.slwk .mtr i.ok  { background: var(--good); }
+.slwk .mtr i.low { background: var(--bad); }
+.slwk .v { font: 800 11.5px var(--sans); color: var(--ink); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.slwk .v small { display: block; font: 600 9px var(--sans); color: var(--ink3); letter-spacing: 0; }
+.slwk .v.none { color: var(--ink3); font-weight: 700; }
+
 /* ---------- journal feed ---------- */
 /* The gutter is wider than the dot strictly needs so the today panel has room
    to inset its text without reaching the timeline. Kept on .feed rather than
