@@ -1,7 +1,8 @@
 import { join, extname } from "path";
 import { getAuthUrl, exchangeCode } from "./strava/client";
 import { syncActivities } from "./strava/sync";
-import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, getTokens, getSplitsForActivity, getFeedbackForActivity, upsertFeedback, createFeedbackRequest, finishFeedbackRequest, getLatestFeedbackRequest, getActivityByStravaId } from "./db";
+import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, getTokens, getSplitsForActivity, getFeedbackForActivity, upsertFeedback, createFeedbackRequest, finishFeedbackRequest, getLatestFeedbackRequest, getActivityByStravaId, upsertDailyMetrics, getDailyMetricsWide, getDailyMetricsSummary } from "./db";
+import { parseHealthExport } from "./health";
 import { getPlanStatus, getAvailablePlans } from "./plan";
 import { getToday } from "./today";
 import { getJournal } from "./journal";
@@ -352,6 +353,35 @@ const server = Bun.serve({
 
         const requestId = startAnalysis(stravaId, date, normalizeNote(body.note), account);
         return json({ started: true, request_id: requestId }, 202);
+      }
+    }
+
+    if (path === "/api/health") {
+      if (req.method === "GET") {
+        if (url.searchParams.get("summary") === "1") return json(getDailyMetricsSummary());
+        const after = url.searchParams.get("after") ?? undefined;
+        const before = url.searchParams.get("before") ?? undefined;
+        const metrics = url.searchParams.get("metrics")?.split(",").filter(Boolean);
+        return json(getDailyMetricsWide({ after, before, metrics }));
+      }
+
+      if (req.method === "POST") {
+        try {
+          const rows = parseHealthExport(await req.json());
+          if (!rows.length) {
+            return json({ error: "No recognisable Health Auto Export metrics in body" }, 400);
+          }
+          const dates = rows.map((r) => r.date);
+          return json({
+            imported: upsertDailyMetrics(rows),
+            days: new Set(dates).size,
+            metrics: new Set(rows.map((r) => r.metric)).size,
+            first_date: dates.reduce((a, b) => (a < b ? a : b)),
+            last_date: dates.reduce((a, b) => (a > b ? a : b)),
+          });
+        } catch (e) {
+          return json({ error: String(e) }, 400);
+        }
       }
     }
 

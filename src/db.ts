@@ -1,5 +1,6 @@
 import { Database } from "bun:sqlite";
 import { join } from "path";
+import type { DailyMetric } from "./health";
 
 /* The named parameter object bun:sqlite accepts. Deliberately not
    Record<string, SQLQueryBindings>: that type already includes a record, so
@@ -91,6 +92,20 @@ db.exec(`
     narrative TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))
   );
+
+  /* Long format rather than a column per metric: Apple Health ships ~40 series
+     today and adds more with each watchOS release, and Health Auto Export will
+     happily send any of them. A narrow table absorbs a new series without a
+     migration. */
+  CREATE TABLE IF NOT EXISTS daily_metrics (
+    date TEXT NOT NULL,
+    metric TEXT NOT NULL,
+    value REAL NOT NULL,
+    units TEXT,
+    updated_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (date, metric)
+  );
+  CREATE INDEX IF NOT EXISTS idx_daily_metrics_metric ON daily_metrics(metric, date);
 
   CREATE TABLE IF NOT EXISTS feedback_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -420,6 +435,77 @@ export function getLatestFeedbackRequest(stravaId: number): FeedbackRequestRow |
 export function getActivityByStravaId(stravaId: number): Record<string, unknown> | null {
   return db.query("SELECT * FROM activities WHERE strava_id = ?")
     .get(stravaId) as Record<string, unknown> | null;
+}
+
+export function upsertDailyMetrics(rows: DailyMetric[]): number {
+  const stmt = db.query(`
+    INSERT INTO daily_metrics (date, metric, value, units)
+    VALUES ($date, $metric, $value, $units)
+    ON CONFLICT(date, metric) DO UPDATE SET
+      value = $value, units = $units, updated_at = datetime('now')
+  `);
+  const write = db.transaction((batch: DailyMetric[]) => {
+    for (const r of batch) {
+      stmt.run({ $date: r.date, $metric: r.metric, $value: r.value, $units: r.units });
+    }
+  });
+  write(rows);
+  return rows.length;
+}
+
+export interface DailyMetricRow {
+  date: string;
+  metric: string;
+  value: number;
+  units: string | null;
+}
+
+export function getDailyMetrics(
+  opts: { after?: string; before?: string; metrics?: string[] } = {},
+): DailyMetricRow[] {
+  const conditions: string[] = [];
+  const params: Bindings = {};
+
+  if (opts.after) { conditions.push("date >= $after"); params.$after = opts.after; }
+  if (opts.before) { conditions.push("date <= $before"); params.$before = opts.before; }
+  if (opts.metrics?.length) {
+    const names = opts.metrics.map((_, i) => `$m${i}`);
+    conditions.push(`metric IN (${names.join(", ")})`);
+    opts.metrics.forEach((m, i) => { params[`$m${i}`] = m; });
+  }
+
+  const where = conditions.length ? "WHERE " + conditions.join(" AND ") : "";
+  return db.query(`
+    SELECT date, metric, value, units FROM daily_metrics ${where}
+    ORDER BY date DESC, metric
+  `).all(params) as DailyMetricRow[];
+}
+
+export function getDailyMetricsWide(
+  opts: { after?: string; before?: string; metrics?: string[] } = {},
+): Array<Record<string, string | number>> {
+  const byDate = new Map<string, Record<string, string | number>>();
+  for (const row of getDailyMetrics(opts)) {
+    let day = byDate.get(row.date);
+    if (!day) { day = { date: row.date }; byDate.set(row.date, day); }
+    day[row.metric] = row.value;
+  }
+  return [...byDate.values()].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+}
+
+export function getDailyMetricsSummary() {
+  const totals = db.query(`
+    SELECT COUNT(*) as rows, COUNT(DISTINCT date) as days,
+           MIN(date) as first_date, MAX(date) as last_date
+    FROM daily_metrics
+  `).get() as { rows: number; days: number; first_date: string | null; last_date: string | null };
+
+  const metrics = db.query(`
+    SELECT metric, COUNT(*) as days, MIN(date) as first_date, MAX(date) as last_date
+    FROM daily_metrics GROUP BY metric ORDER BY metric
+  `).all() as Array<{ metric: string; days: number; first_date: string; last_date: string }>;
+
+  return { ...totals, metrics };
 }
 
 export default db;
