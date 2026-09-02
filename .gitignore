@@ -4,3 +4,5 @@ data/
 .superpowers/brainstorm/
 .superpowers/sdd/*/
 .local-dev/
+.DS_Store
+logs/
