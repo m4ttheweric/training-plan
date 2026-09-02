@@ -52,6 +52,24 @@ describe("buildRecovery", () => {
     expect(rec.weeks.map((w) => w.week)).toEqual([5, 6]);
   });
 
+  test("flags the week containing the as-of date as current", () => {
+    // 2026-08-14 falls in week 6's Mon-Sun span (08-10..08-16), not week 5's.
+    expect(rec.weeks.find((w) => w.week === 5)!.current).toBe(false);
+    expect(rec.weeks.find((w) => w.week === 6)!.current).toBe(true);
+  });
+
+  test("hides a started week with neither a run nor a scored night", () => {
+    const withEmpty: any = {
+      plan: status.plan,
+      weeks: [
+        status.weeks[0],
+        { week: 6, weekStart: "2026-08-10", recovery: false, summary: { actualMiles: 0 }, days: [] },
+      ],
+    };
+    const r = buildRecovery(withEmpty, sleep.filter((s) => s.date < "2026-08-10"), "2026-08-14");
+    expect(r.weeks.map((w) => w.week)).toEqual([5]);
+  });
+
   test("buckets sleep into the week its morning belongs to", () => {
     const w5 = rec.weeks.find((w) => w.week === 5)!;
     expect(w5.nights).toBe(2);

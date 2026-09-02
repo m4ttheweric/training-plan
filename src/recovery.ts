@@ -16,6 +16,7 @@ export interface RecoveryWeek {
   week: number;
   weekStart: string;
   recovery: boolean;
+  current: boolean;
   miles: number;
   runs: number;
   avgSleep: number | null;
@@ -100,6 +101,7 @@ export function buildRecovery(
       week: w.week,
       weekStart: w.weekStart,
       recovery: w.recovery,
+      current: w.weekStart <= now && addDays(w.weekStart, 6) >= now,
       miles: w.summary.actualMiles,
       runs,
       avgSleep: mean(totals),
@@ -108,13 +110,18 @@ export function buildRecovery(
     };
   });
 
+  // A week with neither a run nor a scored night is nothing to show yet. This
+  // drops the just-started current week that has no data until its first run or
+  // night lands, rather than trailing the card with an all-dashes row.
+  const shown = weeks.filter((w) => w.nights > 0 || w.miles > 0);
+
   return {
     target: SLEEP_TARGET,
     adequate: SLEEP_ADEQUATE,
     planAvgSleep: mean(allNightTotals),
-    weeksWithSleep: weeks.filter((w) => w.nights > 0).length,
-    weeksAtTarget: weeks.filter((w) => w.avgSleep != null && w.avgSleep >= SLEEP_ADEQUATE).length,
-    weeks,
+    weeksWithSleep: shown.filter((w) => w.nights > 0).length,
+    weeksAtTarget: shown.filter((w) => w.avgSleep != null && w.avgSleep >= SLEEP_ADEQUATE).length,
+    weeks: shown,
   };
 }
 
