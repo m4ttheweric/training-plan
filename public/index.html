@@ -52,6 +52,7 @@ function render(d) {
   if (d.plan) {
     h += '<div class="h1">' + esc(d.plan.label) + '</div>';
     if (d.plan.detail) h += '<div style="font:500 13.5px var(--sans);opacity:.88">' + esc(d.plan.detail) + '</div>';
+    if (d.plan.detailText) h += '<div class="body" style="margin-top:8px;max-width:46ch">' + esc(d.plan.detailText) + '</div>';
   } else {
     h += '<div class="h1">Rest</div>';
   }

@@ -7,6 +7,10 @@ const status: any = {
     name: "10K Race Plan",
     race: { name: "10K", date: "2026-10-03", targetPace: "~8:30/mi", targetTime: "52-53 min" },
     phases: [{ id: "build", name: "Build", tag: "4 runs / week", description: "Build desc", weeks: [5] }],
+    glossary: [
+      { term: "+ strides", definition: "4-6 x 20-sec pickups at a comfortably fast turnover." },
+      { term: "hills", definition: "6-8 x 30-sec uphill efforts, walk-jog down." },
+    ],
   },
   weeks: [
     {
@@ -60,7 +64,10 @@ describe("buildToday", () => {
 
   test("surfaces today's prescription", () => {
     expect(view.date).toBe("2026-08-03");
-    expect(view.plan).toEqual({ type: "run", miles: 3, label: "3 mi", detail: "+ strides" });
+    expect(view.plan).toEqual({
+      type: "run", miles: 3, label: "3 mi", detail: "+ strides",
+      detailText: "4-6 x 20-sec pickups at a comfortably fast turnover.",
+    });
   });
 
   test("reports the week and phase", () => {
@@ -125,6 +132,27 @@ describe("buildToday", () => {
     const outside = buildToday(status, "2027-01-01", lookup);
     expect(outside.plan).toBeNull();
     expect(outside.week).toBeNull();
+  });
+
+  test("substitutes a day's rep count into the generic glossary range", () => {
+    const withReps: any = structuredClone(status);
+    withReps.weeks[1].days[0].plan = { type: "run", miles: 3, label: "3 mi", detail: "hills", reps: 6 };
+    const v = buildToday(withReps, "2026-08-03", lookup);
+    expect(v.plan.detailText).toBe("6 x 30-sec uphill efforts, walk-jog down.");
+  });
+
+  test("leaves the glossary range alone when the day pins no rep count", () => {
+    const noReps: any = structuredClone(status);
+    noReps.weeks[1].days[0].plan = { type: "run", miles: 3, label: "3 mi", detail: "hills" };
+    const v = buildToday(noReps, "2026-08-03", lookup);
+    expect(v.plan.detailText).toBe("6-8 x 30-sec uphill efforts, walk-jog down.");
+  });
+
+  test("yields a null detailText for a plan carrying no glossary", () => {
+    const noGlossary: any = structuredClone(status);
+    delete noGlossary.plan.glossary;
+    const v = buildToday(noGlossary, "2026-08-03", lookup);
+    expect(v.plan.detailText).toBeNull();
   });
 
   test("degrades when the last run has no feedback", () => {

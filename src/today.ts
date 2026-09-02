@@ -14,6 +14,15 @@ function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(a + "T12:00:00Z") - Date.parse(b + "T12:00:00Z")) / DAY_MS);
 }
 
+// Glossary entries are written for the generic case ("6-8 x 30-sec"); when a
+// specific day pins down its rep count, swap that range for the real number
+// so today's prescription doesn't read like a menu of options.
+function detailText(glossary: Array<{ term: string; definition: string }> | undefined, detail?: string, reps?: number): string | null {
+  const entry = glossary?.find(g => g.term === detail);
+  if (!entry) return null;
+  return reps != null ? entry.definition.replace(/\d+-\d+(?= x )/, String(reps)) : entry.definition;
+}
+
 export function buildToday(status: any, todayIso: string, lookup: TodayLookup) {
   const week = status.weeks.find((w: any) => w.days.some((d: any) => d.date === todayIso)) ?? null;
   const day = week ? week.days.find((d: any) => d.date === todayIso) : null;
@@ -21,6 +30,7 @@ export function buildToday(status: any, todayIso: string, lookup: TodayLookup) {
   // A rest day has no prescription to state.
   const plan = day && day.plan.type !== "rest" ? {
     type: day.plan.type, miles: day.plan.miles, label: day.plan.label, detail: day.plan.detail,
+    detailText: detailText(status.plan.glossary, day.plan.detail, day.plan.reps),
   } : null;
 
   const phaseName = week

@@ -11,6 +11,7 @@ interface PlanDay {
   miles?: number;
   label?: string;
   detail?: string;
+  reps?: number;
   newSlot?: boolean;
 }
 
@@ -50,7 +51,7 @@ interface ActualInfo {
 interface PlanDayStatus {
   date: string;
   dayOfWeek: number;
-  plan: { type: string; miles?: number; label: string; detail?: string; newSlot?: boolean };
+  plan: { type: string; miles?: number; label: string; detail?: string; reps?: number; newSlot?: boolean };
   status: "completed" | "partial" | "missed" | "upcoming" | "today" | "rest";
   actual?: ActualInfo;
   /** Set when the activity filling this slot happened on a different date. */
@@ -263,7 +264,7 @@ export function getPlanStatus(planId?: string, today?: string): PlanStatusRespon
         return { date, dayOfWeek: di, plan: { type: day.type, label, detail: day.detail, newSlot: day.newSlot }, status: "rest" as const, ...extra };
       }
 
-      const planInfo = { type: day.type, miles: day.miles, label, detail: day.detail, newSlot: day.newSlot };
+      const planInfo = { type: day.type, miles: day.miles, label, detail: day.detail, reps: day.reps, newSlot: day.newSlot };
 
       if (date > now) {
         if (day.miles) { plannedRuns++; plannedMiles += day.miles; }
