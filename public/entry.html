@@ -10,7 +10,7 @@
 <div class="shell" id="root"></div>
 <script type="module">
 import { esc, fmtMiles, fmtPaceFromSpeed, fmtDayLabel, renderMarkdown, firstParagraph } from "/lib.js";
-import { requestAnalysis, pollAnalysis, friendlyError } from "/analyze.js";
+import { requestAnalysis, pollAnalysis, friendlyError, resumeState } from "/analyze.js";
 
 const NAV = '<nav class="nav">' +
   '<a href="/">Today</a>' +
@@ -192,7 +192,9 @@ async function load() {
   hasFeedback = !!(fb && fb.narrative);
   const pending = await fetch("/api/activities/" + id + "/analyze")
     .then(r => r.ok ? r.json() : null).catch(() => null);
-  if (pending && pending.status === "running") awaitAnalysis();
+  const resume = resumeState(pending);
+  if (resume.state === "running") awaitAnalysis();
+  else if (resume.state === "failed") fail(resume.error);
   else analyzeIdle();
 }
 

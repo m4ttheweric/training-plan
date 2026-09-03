@@ -3,6 +3,7 @@ import {
   buildAnalyzeCommand, buildAnalyzePrompt, buildSpawnEnv, decideAnalyzeRequest, resolveAccount, normalizeNote,
   DEFAULT_ACCOUNT,
 } from "../src/analyze";
+import { resumeState } from "../public/analyze.js";
 
 const OPTS = { account: "goodwin.matthew.eric@gmail.com", date: "2026-08-03", note: null };
 
@@ -26,6 +27,36 @@ describe("tool permissions", () => {
     expect(buildAnalyzeCommand(OPTS)).not.toContain("--dangerously-skip-permissions");
   });
 });
+
+describe("resumeState", () => {
+  test("no prior request leaves the row idle", () => {
+    expect(resumeState(null).state).toBe("idle");
+  });
+
+  test("a running request is rejoined", () => {
+    expect(resumeState({ status: "running" }).state).toBe("running");
+  });
+
+  test("a completed request leaves the row idle", () => {
+    expect(resumeState({ status: "done" }).state).toBe("idle");
+  });
+
+  test("a failed request keeps its error visible across a reload", () => {
+    const r = resumeState({ status: "failed", error: "You've hit your session limit" });
+    expect(r.state).toBe("failed");
+    expect(r.error).toBe("You've hit your session limit");
+  });
+
+  test("a failed request gets the friendly translation", () => {
+    expect(resumeState({ status: "failed", error: "refresh token expired" }).error)
+      .toMatch(/cswap add/);
+  });
+
+  test("a failed request with no error text still reads as a failure", () => {
+    expect(resumeState({ status: "failed", error: null }).error).toBe("The analysis failed.");
+  });
+});
+
 describe("model pinning", () => {
   test("always pins opus", () => {
     const cmd = buildAnalyzeCommand(OPTS);

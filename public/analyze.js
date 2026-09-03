@@ -38,6 +38,16 @@ export async function pollAnalysis(id) {
   return { status: "failed", error: "Timed out waiting for the analysis." };
 }
 
+/* What the analyze row should show for the latest request when the page loads.
+   A failed request has to keep its error: the API still reports the failure,
+   so resetting to a fresh Analyze button hides an outcome the server knows. */
+export function resumeState(request) {
+  if (!request) return { state: "idle" };
+  if (request.status === "running") return { state: "running" };
+  if (request.status === "failed") return { state: "failed", error: friendlyError(request.error) };
+  return { state: "idle" };
+}
+
 /* A dead cswap refresh token is a live scenario, so name the fix instead of
    dumping raw stderr at the reader. */
 export function friendlyError(message) {
