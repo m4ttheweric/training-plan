@@ -6,6 +6,26 @@ import {
 
 const OPTS = { account: "goodwin.matthew.eric@gmail.com", date: "2026-08-03", note: null };
 
+function allowedTools(): string {
+  const cmd = buildAnalyzeCommand(OPTS);
+  const i = cmd.indexOf("--allowedTools");
+  expect(i).toBeGreaterThan(-1);
+  return cmd[i + 1]!;
+}
+
+describe("tool permissions", () => {
+  test("permits the curl calls the skill posts feedback with", () => {
+    expect(allowedTools()).toMatch(/Bash\(curl:/);
+  });
+
+  test("permits the sqlite3 reads the readiness step needs", () => {
+    expect(allowedTools()).toMatch(/sqlite3/);
+  });
+
+  test("never bypasses permissions wholesale", () => {
+    expect(buildAnalyzeCommand(OPTS)).not.toContain("--dangerously-skip-permissions");
+  });
+});
 describe("model pinning", () => {
   test("always pins opus", () => {
     const cmd = buildAnalyzeCommand(OPTS);

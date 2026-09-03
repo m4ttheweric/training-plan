@@ -49,8 +49,11 @@ export function buildAnalyzePrompt(date: string, note: string | null): string {
   return clean ? `${base}\n\nAdditional context from the athlete: ${clean}` : base;
 }
 
-/* --allowedTools is scoped to curl rather than bypassing permissions outright,
-   because the skill's only side effects are curl calls to the local API. */
+/* --allowedTools is scoped to the two binaries the skill needs rather than
+   bypassing permissions outright: curl for the local API, and sqlite3 for the
+   readiness reads, which live in the health DB that /api/sync never touches. */
+export const ANALYZE_ALLOWED_TOOLS = "Bash(curl:*),Bash(sqlite3:*)";
+
 /* cswap run <account> -- <args> invokes claude itself and appends these
    args, so passing a literal "claude" here would be consumed as a
    positional prompt and would silently mangle the real prompt. */
@@ -61,7 +64,7 @@ export function buildAnalyzeCommand(
   return [
     "cswap", "run", account, "--",
     "--model", "opus",
-    "--allowedTools", "Bash(curl:*)",
+    "--allowedTools", ANALYZE_ALLOWED_TOOLS,
     "-p", buildAnalyzePrompt(opts.date, opts.note),
   ];
 }
