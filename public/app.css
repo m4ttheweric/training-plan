@@ -141,6 +141,25 @@ body {
   font: 600 14px/1.5 var(--sans); color: var(--ink);
 }
 
+/* ---------- narrative pipe table (renderMarkdown) ---------- */
+.mdtbl { overflow-x: auto; margin: 14px 0; }
+.mdtbl table { border-collapse: collapse; min-width: 100%; }
+.mdtbl th {
+  font: 700 8.5px var(--sans); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink3); text-align: left; padding: 0 14px 6px 0;
+  border-bottom: 2px solid var(--ink); white-space: nowrap;
+}
+.mdtbl td {
+  font: 400 12.5px/1.55 var(--sans); color: var(--ink2);
+  padding: 8px 14px 8px 0; border-bottom: 1px solid var(--hair);
+  vertical-align: top; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mdtbl th:last-child, .mdtbl td:last-child { padding-right: 0; }
+/* Only the trailing prose cell may wrap, and it needs a floor or the scroll
+   container squeezes it to a sliver on phones. */
+.mdtbl td:last-child { white-space: normal; min-width: 15em; }
+
 /* ---------- per-mile component ---------- */
 .mrow {
   display: grid; grid-template-columns: 26px 1fr 52px 40px;

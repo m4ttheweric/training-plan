@@ -79,13 +79,15 @@ export function firstParagraph(narrative) {
 }
 
 /* Deliberately small markdown subset: headings, bold, unordered lists,
-   paragraphs. Tables are not supported because tabular content comes from
-   the splits endpoint and analysis_json, never from prose. */
+   paragraphs, and pipe tables (the feedback narrative's per-mile breakdown
+   arrives as one). Rows before the |---| separator are the header; a table
+   with no separator is all body. */
 export function renderMarkdown(md) {
   const lines = String(md ?? "").replace(/\r\n/g, "\n").split("\n");
   const out = [];
   let para = [];
   let list = [];
+  let table = [];
 
   const inline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
   const flushPara = () => {
@@ -96,10 +98,31 @@ export function renderMarkdown(md) {
     if (list.length) out.push("<ul>" + list.map(i => "<li>" + inline(i) + "</li>").join("") + "</ul>");
     list = [];
   };
+  const isSep = (cells) => cells.length > 0 && cells.every(c => /^:?-+:?$/.test(c));
+  const flushTable = () => {
+    if (!table.length) return;
+    const sepAt = table.findIndex(isSep);
+    const head = sepAt > 0 ? table.slice(0, sepAt) : [];
+    const body = table.filter(r => !isSep(r)).slice(head.length);
+    const tr = (cells, tag) =>
+      "<tr>" + cells.map(c => "<" + tag + ">" + inline(c) + "</" + tag + ">").join("") + "</tr>";
+    let t = '<div class="mdtbl"><table>';
+    if (head.length) t += "<thead>" + head.map(r => tr(r, "th")).join("") + "</thead>";
+    if (body.length) t += "<tbody>" + body.map(r => tr(r, "td")).join("") + "</tbody>";
+    out.push(t + "</table></div>");
+    table = [];
+  };
 
   for (const raw of lines) {
     const line = raw.trim();
-    if (!line) { flushList(); flushPara(); continue; }
+    if (!line) { flushTable(); flushList(); flushPara(); continue; }
+
+    if (line.startsWith("|")) {
+      flushList(); flushPara();
+      table.push(line.replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim()));
+      continue;
+    }
+    flushTable();
 
     const heading = line.match(/^#{2,4}\s+(.*)$/);
     if (heading) {
@@ -114,6 +137,6 @@ export function renderMarkdown(md) {
     flushList();
     para.push(line);
   }
-  flushList(); flushPara();
+  flushTable(); flushList(); flushPara();
   return out.join("");
 }

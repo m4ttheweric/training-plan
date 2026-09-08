@@ -109,6 +109,57 @@ describe("renderMarkdown", () => {
   test("empty input yields empty output", () => {
     expect(renderMarkdown("")).toBe("");
   });
+
+  test("renders a pipe table with header and body", () => {
+    const md = [
+      "| Mile | Pace |",
+      "|---|---|",
+      "| 1 | 9:16 |",
+      "| 2 | **10:25** |",
+    ].join("\n");
+    expect(renderMarkdown(md)).toBe(
+      '<div class="mdtbl"><table>' +
+      "<thead><tr><th>Mile</th><th>Pace</th></tr></thead>" +
+      "<tbody><tr><td>1</td><td>9:16</td></tr>" +
+      "<tr><td>2</td><td><b>10:25</b></td></tr></tbody>" +
+      "</table></div>"
+    );
+  });
+
+  test("table with alignment colons still drops the separator row", () => {
+    const md = "| a | b |\n|:---|---:|\n| 1 | 2 |";
+    const html = renderMarkdown(md);
+    expect(html).toContain("<th>a</th><th>b</th>");
+    expect(html).toContain("<td>1</td><td>2</td>");
+    expect(html).not.toContain("---");
+  });
+
+  test("table without a separator renders all rows as body", () => {
+    expect(renderMarkdown("| 1 | 9:16 |\n| 2 | 10:25 |")).toBe(
+      '<div class="mdtbl"><table><tbody>' +
+      "<tr><td>1</td><td>9:16</td></tr><tr><td>2</td><td>10:25</td></tr>" +
+      "</tbody></table></div>"
+    );
+  });
+
+  test("table escapes HTML in cells", () => {
+    expect(renderMarkdown("| <b>x</b> |\n|---|\n| <i>y</i> |")).toBe(
+      '<div class="mdtbl"><table>' +
+      "<thead><tr><th>&lt;b&gt;x&lt;/b&gt;</th></tr></thead>" +
+      "<tbody><tr><td>&lt;i&gt;y&lt;/i&gt;</td></tr></tbody>" +
+      "</table></div>"
+    );
+  });
+
+  test("table breaks a surrounding paragraph and text resumes after it", () => {
+    const html = renderMarkdown("before\n| a |\n|---|\n| 1 |\nafter");
+    expect(html).toBe(
+      "<p>before</p>" +
+      '<div class="mdtbl"><table><thead><tr><th>a</th></tr></thead>' +
+      "<tbody><tr><td>1</td></tr></tbody></table></div>" +
+      "<p>after</p>"
+    );
+  });
 });
 
 describe("firstParagraph", () => {
