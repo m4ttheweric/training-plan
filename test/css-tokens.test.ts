@@ -75,6 +75,15 @@ describe("app.css tokens", () => {
     expect(rgbas).toEqual([]);
   });
 
+  test("the accent block overrides ink-coloured text to white", () => {
+    // .block is the one always-saturated surface: anything styled for paper
+    // reads as dark-on-orange there unless it is overridden.
+    for (const sel of [".block .kicker", ".block .body"]) {
+      const rule = blockAfter(sel + " {");
+      expect(rule).toMatch(/color:\s*(#fff|#ffffff|rgba\(\s*255\s*,\s*255\s*,\s*255)/);
+    }
+  });
+
   test("no em or en dashes", () => {
     expect(css.includes("—")).toBe(false);
     expect(css.includes("–")).toBe(false);

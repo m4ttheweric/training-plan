@@ -107,6 +107,9 @@ body {
 }
 .block { background: var(--accent); color: #fff; padding: 20px var(--pad) 22px; }
 .block .kicker { color: rgba(255,255,255,.75); }
+/* .body is inked for paper; on the accent it needs the block's own white. */
+.block .body { color: #fff; }
+.block .body b { color: #fff; }
 .pad { padding: 20px var(--pad) 26px; }
 
 .h1 { font: 800 34px/1.0 var(--sans); letter-spacing: -.035em; margin: 10px 0 8px; }
