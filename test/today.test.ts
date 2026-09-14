@@ -148,6 +148,23 @@ describe("buildToday", () => {
     expect(v.plan.detailText).toBe("6-8 x 30-sec uphill efforts, walk-jog down.");
   });
 
+  test("names the workout from its type when the day carries no detail", () => {
+    const bareLong: any = structuredClone(status);
+    bareLong.plan.glossary.push({ term: "long", definition: "Slightly slower than easy (9:45-10:15/mi)." });
+    bareLong.weeks[1].days[0].plan = { type: "long", miles: 7.5, label: "7.5 mi" };
+    const v = buildToday(bareLong, "2026-08-03", lookup);
+    expect(v.plan.detail).toBe("long");
+    expect(v.plan.detailText).toBe("Slightly slower than easy (9:45-10:15/mi).");
+  });
+
+  test("keeps a day's own detail ahead of its type", () => {
+    const named: any = structuredClone(status);
+    named.weeks[1].days[0].plan = { type: "long", miles: 3.5, label: "3.5 mi", detail: "+ strides" };
+    const v = buildToday(named, "2026-08-03", lookup);
+    expect(v.plan.detail).toBe("+ strides");
+    expect(v.plan.detailText).toBe("4-6 x 20-sec pickups at a comfortably fast turnover.");
+  });
+
   test("yields a null detailText for a plan carrying no glossary", () => {
     const noGlossary: any = structuredClone(status);
     delete noGlossary.plan.glossary;
