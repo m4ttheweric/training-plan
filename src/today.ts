@@ -21,10 +21,32 @@ function daysBetween(a: string, b: string): number {
 // unstated; the workout type doubles as a glossary term for those days.
 const TYPE_TERM: Record<string, string> = { long: "long", run: "easy" };
 
+// A day's detail can stack multiple glossary terms ("+ strides + Bench") or
+// use an alternate phrasing ("w/ strides", "Dead lt · race-AM rehearsal").
+// Split on the "+"/"·" joiners and the "w/ " prefix so each piece can match
+// its own glossary entry independently, then show every match found.
 function detailText(glossary: Array<{ term: string; definition: string }> | undefined, detail?: string, reps?: number): string | null {
-  const entry = glossary?.find(g => g.term === detail);
-  if (!entry) return null;
-  return reps != null ? entry.definition.replace(/\d+-\d+(?= x )/, String(reps)) : entry.definition;
+  if (!glossary || !detail) return null;
+  const aliases = glossary.flatMap(entry =>
+    entry.term.split(" / ").map(alias => ({ core: alias.replace(/^\+ /, "").trim(), entry })));
+
+  // A trailing "lt" (as in "+ Dead lt") is the same light-weight modifier the
+  // "light" entry defines on its own -- strip it and pull "light" in too,
+  // rather than matching the unrelated "Dead / Dead lt" lift-day entry.
+  const segments = detail.split(/[+·]/).map(s => s.replace(/^w\/\s*/, "").trim()).filter(Boolean);
+  const found = segments.flatMap(segment => {
+    const isLight = / lt$/.test(segment);
+    const core = isLight ? segment.replace(/ lt$/, "") : segment;
+    const entry = aliases.find(a => a.core === core)?.entry;
+    const lightEntry = isLight ? glossary.find(g => g.term === "light") : undefined;
+    return [entry, lightEntry].filter((e): e is { term: string; definition: string } => !!e);
+  });
+  const matches = found.filter((entry, i, arr) => arr.indexOf(entry) === i);
+
+  if (!matches.length) return null;
+  const texts = matches.map(entry =>
+    reps != null ? entry.definition.replace(/\d+-\d+(?= x )/, String(reps)) : entry.definition);
+  return texts.join(" ");
 }
 
 export function buildToday(status: any, todayIso: string, lookup: TodayLookup) {
