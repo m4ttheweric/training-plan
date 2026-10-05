@@ -139,4 +139,4 @@ Source lives in `src/`, browser files in `public/`, and plan JSON in `plans/`. T
 
 ## License
 
-No license has been selected yet.
+Licensed under the [MIT License](LICENSE).
