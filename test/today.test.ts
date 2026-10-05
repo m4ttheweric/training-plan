@@ -179,3 +179,19 @@ describe("buildToday", () => {
     expect(noFb.lastRun.splits).toHaveLength(1);
   });
 });
+
+
+describe("plan calendar state", () => {
+  test("distinguishes completed plans from rest days", () => {
+    const view = buildToday(status, "2026-12-01", lookup);
+    expect(view.planState).toBe("complete");
+    expect(view.plan).toBeNull();
+  });
+  test("distinguishes a future plan from a rest day", () => {
+    const view = buildToday(status, "2026-07-01", lookup);
+    expect(view.planState).toBe("upcoming");
+  });
+  test("a rest day inside the plan remains active", () => {
+    expect(buildToday(status, "2026-08-02", lookup).planState).toBe("active");
+  });
+});

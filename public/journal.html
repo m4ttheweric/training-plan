@@ -55,10 +55,12 @@ function syncHeader(status) {
   let h = '<div class="pad syncbar">';
   h += '<div><div class="kicker">Sync</div><div class="body">Last synced ' + esc(synced) + '</div></div>';
   h += '<div class="syncctl">';
-  h += '<button type="button" class="chip light chipbtn" id="syncBtn">' +
+  if (status.stravaConfigured && status.authenticated) h += '<button type="button" class="chip light chipbtn" id="syncBtn">' +
     (status.syncing ? "Syncing..." : "Sync now") + '</button>';
-  if (!status.authenticated) h += '<a class="chip light chipbtn" href="/auth/strava">Connect with Strava</a>';
+  if (status.stravaConfigured && !status.authenticated) h += '<a class="chip light chipbtn" href="/auth/strava">Connect with Strava</a>';
+  if (!status.stravaConfigured) h += '<span class="body">Strava is not connected.</span>';
   h += '</div></div>';
+  if (status.syncError) h += '<div class="pad"><div class="aerr">' + esc(status.syncError) + '</div></div>';
   return h;
 }
 
@@ -125,6 +127,7 @@ async function runSync(btn) {
   } catch (e) {
     btn.disabled = false;
     btn.textContent = "Sync now";
+    btn.parentElement.insertAdjacentHTML("beforeend", '<div class="aerr">' + esc(e.message) + '</div>');
   }
 }
 

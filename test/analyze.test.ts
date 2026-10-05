@@ -1,178 +1,89 @@
 import { expect, test, describe } from "bun:test";
 import {
-  buildAnalyzeCommand, buildAnalyzePrompt, buildSpawnEnv, decideAnalyzeRequest, resolveAccount, normalizeNote,
-  DEFAULT_ACCOUNT,
+  buildAnalyzeCommand, buildAnalyzePrompt, buildSpawnEnv, decideAnalyzeRequest,
+  resolveAccount, normalizeNote, getAnalysisAvailability, parseAnalysisOutput,
 } from "../src/analyze";
 import { resumeState } from "../public/analyze.js";
 
-const OPTS = { account: "goodwin.matthew.eric@gmail.com", date: "2026-08-03", note: null };
+const OPTS = { date: "2026-08-03", note: null, context: { activity: { strava_id: 123 }, prescribed: { miles: 3 } } };
 
-function allowedTools(): string {
-  const cmd = buildAnalyzeCommand(OPTS);
-  const i = cmd.indexOf("--allowedTools");
-  expect(i).toBeGreaterThan(-1);
-  return cmd[i + 1]!;
-}
-
-describe("tool permissions", () => {
-  test("permits the curl calls the skill posts feedback with", () => {
-    expect(allowedTools()).toMatch(/Bash\(curl:/);
+// Removing tool disabling would let model output mutate local data directly.
+describe("portable optional analysis", () => {
+  test("uses the authenticated Claude CLI without account switching by default", () => {
+    expect(buildAnalyzeCommand(OPTS)[0]).toBe("claude");
+    expect(resolveAccount({})).toBeUndefined();
+    expect(resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "" })).toBeUndefined();
   });
-
-  test("permits the sqlite3 reads the readiness step needs", () => {
-    expect(allowedTools()).toMatch(/sqlite3/);
+  test("uses cswap only for an explicitly pinned account", () => {
+    expect(buildAnalyzeCommand({ ...OPTS, account: "runner@example.com" }).slice(0, 4))
+      .toEqual(["cswap", "run", "runner@example.com", "--"]);
   });
+  test.each(["1", "runner@example.com\0", "runner@example.com\u200b", "runner@example.com\u00ad"])("rejects invalid account %s", account => {
+    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: account })).toThrow(/email/);
+  });
+  test("accepts accounts without author-specific employer restrictions", () => {
+    expect(resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "runner@company.example" })).toBe("runner@company.example");
+  });
+  test("disables tools and avoids bypassing permissions", () => {
+    const cmd = buildAnalyzeCommand(OPTS);
+    expect(cmd[cmd.indexOf("--tools") + 1]).toBe("");
+    expect(cmd).not.toContain("--dangerously-skip-permissions");
+  });
+  test("is disabled until explicitly enabled", () => {
+    expect(getAnalysisAvailability({}, () => "/bin/claude").enabled).toBe(false);
+  });
+  test("reports missing CLI before attempting analysis", () => {
+    expect(getAnalysisAvailability({ FEEDBACK_ENABLED: "true" }, () => null).available).toBe(false);
+  });
+  test("can run directly when Claude is installed", () => {
+    expect(getAnalysisAvailability({ FEEDBACK_ENABLED: "true" }, () => "/bin/claude").available).toBe(true);
+  });
+  test("an explicit switched account requires cswap too", () => {
+    expect(getAnalysisAvailability({ FEEDBACK_ENABLED: "true", FEEDBACK_CLAUDE_ACCOUNT: "runner@example.com" }, name => name === "claude" ? "/bin/claude" : null).available).toBe(false);
+  });
+  test("invalid account configuration yields an unavailable status", () => {
+    expect(getAnalysisAvailability({ FEEDBACK_ENABLED: "true", FEEDBACK_CLAUDE_ACCOUNT: "1" }, () => "/bin/claude").available).toBe(false);
+  });
+});
 
-  test("never bypasses permissions wholesale", () => {
-    expect(buildAnalyzeCommand(OPTS)).not.toContain("--dangerously-skip-permissions");
+describe("analysis prompt and result", () => {
+  test("includes actual context and requests a structured response", () => {
+    const prompt = buildAnalyzePrompt(OPTS);
+    expect(prompt).toContain('"strava_id":123');
+    expect(prompt).toContain('"miles":3');
+    expect(prompt).toContain("2026-08-03");
+    expect(prompt).toContain("narrative");
+    expect(prompt).not.toContain("/matt:");
+  });
+  test("includes an athlete note as data", () => {
+    expect(buildAnalyzePrompt({ ...OPTS, note: "scaled back" })).toContain("scaled back");
+  });
+  test("pins a model without silent fallback", () => {
+    const cmd = buildAnalyzeCommand(OPTS);
+    expect(cmd[cmd.indexOf("--model") + 1]).toBe("opus");
+    expect(cmd).not.toContain("--fallback-model");
+  });
+  test("parses structured analysis and narrative", () => {
+    expect(parseAnalysisOutput('{"analysis":{"key_findings":["Even splits"]},"narrative":"Steady run."}'))
+      .toEqual({ analysis: { key_findings: ["Even splits"] }, narrative: "Steady run." });
+  });
+  test("accepts a fenced JSON response", () => {
+    expect(parseAnalysisOutput('```json\n{"analysis":{},"narrative":"Steady run."}\n```').narrative).toBe("Steady run.");
+  });
+  test.each(['garbage', '{}', '{"analysis":[],"narrative":"Run"}', '{"analysis":{},"narrative":""}'])("rejects unusable analysis %s", output => {
+    expect(() => parseAnalysisOutput(output)).toThrow();
   });
 });
 
 describe("resumeState", () => {
-  test("no prior request leaves the row idle", () => {
-    expect(resumeState(null).state).toBe("idle");
+  test("no prior request leaves the row idle", () => expect(resumeState(null).state).toBe("idle"));
+  test("a running request is rejoined", () => expect(resumeState({ status: "running" }).state).toBe("running"));
+  test("a completed request leaves the row idle", () => expect(resumeState({ status: "done" }).state).toBe("idle"));
+  test("a failed request retains its error", () => {
+    expect(resumeState({ status: "failed", error: "Session limit" })).toEqual({ state: "failed", error: "Session limit" });
   });
-
-  test("a running request is rejoined", () => {
-    expect(resumeState({ status: "running" }).state).toBe("running");
-  });
-
-  test("a completed request leaves the row idle", () => {
-    expect(resumeState({ status: "done" }).state).toBe("idle");
-  });
-
-  test("a failed request keeps its error visible across a reload", () => {
-    const r = resumeState({ status: "failed", error: "You've hit your session limit" });
-    expect(r.state).toBe("failed");
-    expect(r.error).toBe("You've hit your session limit");
-  });
-
-  test("a failed request gets the friendly translation", () => {
-    expect(resumeState({ status: "failed", error: "refresh token expired" }).error)
-      .toMatch(/cswap add/);
-  });
-
-  test("a failed request with no error text still reads as a failure", () => {
-    expect(resumeState({ status: "failed", error: null }).error).toBe("The analysis failed.");
-  });
-});
-
-describe("model pinning", () => {
-  test("always pins opus", () => {
-    const cmd = buildAnalyzeCommand(OPTS);
-    const i = cmd.indexOf("--model");
-    expect(i).toBeGreaterThan(-1);
-    expect(cmd[i + 1]).toBe("opus");
-  });
-
-  test("never emits --fallback-model", () => {
-    expect(buildAnalyzeCommand(OPTS)).not.toContain("--fallback-model");
-  });
-});
-
-describe("account pinning", () => {
-  test("rejects the assured work account", () => {
-    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "matthew.goodwin@assured.claims" }))
-      .toThrow(/work account/i);
-  });
-
-  test("rejects any assured.claims address", () => {
-    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "someone.else@assured.claims" }))
-      .toThrow(/work account/i);
-  });
-
-  test("rejects a bare slot number, which could resolve to the work account", () => {
-    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "1" })).toThrow(/email/i);
-  });
-
-  test("rejects a blank override", () => {
-    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "   " })).toThrow();
-  });
-
-  test("returns the override when set", () => {
-    expect(resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "other@gmail.com" })).toBe("other@gmail.com");
-  });
-
-  test("falls back to the personal default", () => {
-    expect(resolveAccount({})).toBe(DEFAULT_ACCOUNT);
-  });
-
-  test("the default is not a work account", () => {
-    expect(DEFAULT_ACCOUNT).not.toMatch(/assured\.claims/i);
-  });
-
-  test("buildAnalyzeCommand independently rejects the work account", () => {
-    expect(() => buildAnalyzeCommand({ ...OPTS, account: "matthew.goodwin@assured.claims" }))
-      .toThrow(/work account/i);
-  });
-
-  test("the cswap subcommand is always run", () => {
-    const cmd = buildAnalyzeCommand(OPTS);
-    expect(cmd[0]).toBe("cswap");
-    expect(cmd[1]).toBe("run");
-  });
-
-  test("rejects the work account with a trailing NUL byte", () => {
-    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "matthew.goodwin@assured.claims\0" })).toThrow();
-  });
-
-  test("rejects the work account with a trailing zero width space", () => {
-    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "matthew.goodwin@assured.claims​" })).toThrow();
-  });
-
-  test("rejects the work account with a trailing soft hyphen", () => {
-    expect(() => resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "matthew.goodwin@assured.claims­" })).toThrow();
-  });
-
-  test("buildAnalyzeCommand rejects a work account with invisible trailing characters", () => {
-    expect(() => buildAnalyzeCommand({
-      account: "matthew.goodwin@assured.claims​", date: "2026-08-03", note: null,
-    })).toThrow();
-  });
-
-  test("still accepts a normal personal address", () => {
-    expect(resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "goodwin.matthew.eric@gmail.com" }))
-      .toBe("goodwin.matthew.eric@gmail.com");
-  });
-
-  test("does not pass a literal claude argument, which cswap supplies itself", () => {
-    const cmd = buildAnalyzeCommand(OPTS);
-    expect(cmd).not.toContain("claude");
-  });
-
-  test("the argument after the -- separator is a flag, not a binary name", () => {
-    const cmd = buildAnalyzeCommand(OPTS);
-    const sep = cmd.indexOf("--");
-    expect(sep).toBeGreaterThan(-1);
-    expect(cmd[sep + 1]!.startsWith("-")).toBe(true);
-  });
-});
-
-describe("prompt shaping", () => {
-  test("includes the date", () => {
-    expect(buildAnalyzePrompt("2026-08-03", null)).toContain("2026-08-03");
-  });
-
-  test("invokes the skill by its slash command", () => {
-    expect(buildAnalyzePrompt("2026-08-03", null)).toBe("/matt:run-feedback 2026-08-03");
-  });
-
-  test("includes the note text when given", () => {
-    expect(buildAnalyzePrompt("2026-08-03", "mild virus, scaled back"))
-      .toContain("mild virus, scaled back");
-  });
-
-  test("omits the note paragraph when null", () => {
-    expect(buildAnalyzePrompt("2026-08-03", null)).not.toContain("Additional context");
-  });
-
-  test("omits the note paragraph when whitespace only", () => {
-    expect(buildAnalyzePrompt("2026-08-03", "   ")).not.toContain("Additional context");
-  });
-
-  test("the note reaches the built command", () => {
-    const cmd = buildAnalyzeCommand({ ...OPTS, note: "mild virus" });
-    expect(cmd.join(" ")).toContain("mild virus");
+  test("an authentication error suggests re-login without assuming cswap", () => {
+    expect(resumeState({ status: "failed", error: "refresh token expired" }).error).toMatch(/log in/i);
   });
 });
 

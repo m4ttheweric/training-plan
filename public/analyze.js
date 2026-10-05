@@ -52,6 +52,6 @@ export function resumeState(request) {
    dumping raw stderr at the reader. */
 export function friendlyError(message) {
   if (/re-login|refresh token/i.test(message || ""))
-    return "Account needs re-login. Run: cswap add";
+    return "Account needs authentication. Log in to your configured Claude account again.";
   return message || "The analysis failed.";
 }

@@ -6,34 +6,7 @@ import { localDate } from "../public/lib.js";
 
 const PLANS_DIR = join(import.meta.dir, "../plans");
 
-interface PlanDay {
-  type: "run" | "long" | "lift" | "rest" | "race";
-  miles?: number;
-  label?: string;
-  detail?: string;
-  reps?: number;
-  newSlot?: boolean;
-}
-
-interface PlanWeek {
-  week: number;
-  recovery?: boolean;
-  days: PlanDay[];
-}
-
-interface PlanFile {
-  id: string;
-  name: string;
-  subtitle: string;
-  startDate: string;
-  race?: { name: string; date: string; distance: number; targetPace: string; targetTime: string };
-  phases: Array<{ id: string; name: string; tag: string; type?: string; description: string; weeks: number[] }>;
-  afterPlan?: { name: string; tag: string; description: string };
-  weeks: PlanWeek[];
-  glossary: Array<{ term: string; definition: string }>;
-  rules: Array<{ label: string; text: string }>;
-  callout: string;
-}
+import { PLAN_ID_PATTERN, chooseDefaultPlan, validatePlan, type PlanDay, type PlanFile } from "./plan-schema";
 
 interface ActualInfo {
   strava_id?: number;
@@ -82,10 +55,11 @@ function listPlans(): string[] {
 }
 
 export function loadPlan(planId?: string): PlanFile {
-  const id = planId ?? listPlans()[0];
+  const id = planId ?? (process.env.PLAN_ID?.trim() || chooseDefaultPlan(listPlans().map(id => loadPlan(id)), localDate()).id);
   if (!id) throw new Error("No plans found in " + PLANS_DIR);
+  if (!PLAN_ID_PATTERN.test(id)) throw new Error("Invalid plan ID");
   const path = join(PLANS_DIR, id + ".json");
-  return JSON.parse(readFileSync(path, "utf-8"));
+  return validatePlan(JSON.parse(readFileSync(path, "utf-8")), id);
 }
 
 export function getAvailablePlans(): Array<{ id: string; name: string; startDate: string }> {

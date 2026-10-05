@@ -7,10 +7,15 @@
     "dev": "bun --hot src/server.ts",
     "start": "bun src/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsc --noEmit && bun test"
+    "test": "bun run validate:plans && bun run typecheck && bun test",
+    "validate:plans": "bun src/validate-plans.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
   }
 }

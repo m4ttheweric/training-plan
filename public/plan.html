@@ -93,7 +93,7 @@ function render(data, rec) {
   if (race) {
     const days = Math.round((Date.parse(race.date + "T12:00:00Z") - Date.parse(today + "T12:00:00Z")) / 86400000);
     const weeks = Math.max(0, Math.ceil(days / 7));
-    h += '<div class="h1 sm">' + weeks + ' weeks out</div>';
+    h += '<div class="h1 sm">' + (days < 0 ? "Race complete" : weeks + " weeks out") + '</div>';
     h += '<div style="font:600 13px var(--sans);opacity:.88">' + esc(fmtDayLabel(race.date)) +
          ' &middot; target ' + esc(race.targetPace) + ' &middot; ' + esc(race.targetTime) + '</div>';
   }

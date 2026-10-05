@@ -15,15 +15,22 @@ export async function waitForSyncDone() {
   for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
     const status = await fetch("/api/status").then((r) => r.json()).catch(() => ({ syncing: true }));
-    if (!status.syncing) return;
+    if (!status.syncing) {
+      if (status.syncError) throw new Error(status.syncError);
+      return;
+    }
   }
+  throw new Error("Timed out waiting for Strava sync");
 }
 
 /* A manual sync always runs -- the person on the page explicitly asked for
    one, so there is no throttle to check. */
 export async function manualSync() {
   const res = await fetch("/api/sync", { method: "POST" });
-  if (!res.ok && res.status !== 409) throw new Error("Sync failed to start");
+  if (!res.ok && res.status !== 409) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Sync failed to start");
+  }
   await waitForSyncDone();
 }
 
@@ -42,7 +49,7 @@ export async function autoSync() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ auto: true }),
     });
-    if (res.status === 409) return { ran: false };
+    if (!res.ok) return { ran: false };
     const body = await res.json();
     if (body.skipped) return { ran: false };
     await waitForSyncDone();

@@ -117,8 +117,17 @@ export function buildToday(status: any, todayIso: string, lookup: TodayLookup) {
     daysAway: daysBetween(status.plan.race.date, todayIso),
   } : null;
 
+  const firstDate = allDays[0]?.date;
+  const lastDate = allDays.at(-1)?.date;
+  const planState = firstDate && todayIso < firstDate ? "upcoming"
+    : lastDate && todayIso > lastDate ? "complete" : "active";
+
   return {
     date: todayIso,
+    planState,
+    planStartDate: firstDate ?? null,
+    planEndDate: lastDate ?? null,
+    afterPlan: planState === "complete" ? status.plan.afterPlan ?? null : null,
     plan,
     week: week ? {
       number: week.week, phase: week.phase, phaseName,

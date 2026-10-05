@@ -54,11 +54,14 @@ function render(d) {
     if (d.plan.detail) h += '<div style="font:600 13.5px var(--sans)">' + esc(d.plan.detail) + '</div>';
     if (d.plan.detailText) h += '<div class="body" style="margin-top:8px;max-width:46ch">' + esc(d.plan.detailText) + '</div>';
   } else {
-    h += '<div class="h1">Rest</div>';
+    const title = d.planState === "complete" ? "Plan complete" : d.planState === "upcoming" ? "Plan starts soon" : "Rest";
+    h += '<div class="h1">' + title + '</div>';
+    if (d.planState === "upcoming") h += '<div class="body">Starts ' + esc(fmtDayLabel(d.planStartDate)) + '</div>';
+    if (d.afterPlan) h += '<div class="body">' + esc(d.afterPlan.description) + '</div>';
   }
   h += '<div class="chips">';
   if (d.next) h += '<div class="chip">Next <b>' + esc(d.next.label) + '</b></div>';
-  if (d.race) h += '<div class="chip">Race in <b>' + d.race.daysAway + 'd</b></div>';
+  if (d.race && d.race.daysAway >= 0) h += '<div class="chip">Race in <b>' + d.race.daysAway + 'd</b></div>';
   h += '</div></div>';
 
   h += '<div class="pad"><div class="split2"><div>';

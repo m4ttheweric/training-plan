@@ -1,5 +1,5 @@
 import { join, extname } from "path";
-import { getAuthUrl, exchangeCode } from "./strava/client";
+import { getAuthUrl, exchangeCode, isStravaConfigured } from "./strava/client";
 import { syncActivities } from "./strava/sync";
 import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, getTokens, getSplitsForActivity, getFeedbackForActivity, upsertFeedback, createFeedbackRequest, finishFeedbackRequest, getLatestFeedbackRequest, getActivityByStravaId, upsertDailyMetrics, getDailyMetricsWide, getDailyMetricsSummary } from "./db";
 import { parseHealthExport } from "./health";
@@ -7,9 +7,10 @@ import { getPlanStatus, getAvailablePlans } from "./plan";
 import { getRecovery } from "./recovery";
 import { getToday } from "./today";
 import { getJournal } from "./journal";
-import { ANALYZE_TIMEOUT_MS, buildAnalyzeCommand, buildSpawnEnv, decideAnalyzeRequest, normalizeNote, resolveAccount } from "./analyze";
+import { ANALYZE_TIMEOUT_MS, buildAnalyzeCommand, buildSpawnEnv, decideAnalyzeRequest, normalizeNote, resolveAccount, getAnalysisAvailability, parseAnalysisOutput } from "./analyze";
 
-const PORT = parseInt(process.env.PORT || "8081");
+import { getServerConfig } from "./config";
+const { port: PORT, hostname: HOST } = getServerConfig(process.env);
 const PUBLIC_DIR = join(import.meta.dir, "../public");
 
 const MIME: Record<string, string> = {
@@ -57,6 +58,7 @@ let analyzing = false;
 // around "last synced" needs this instead. In-memory only; it resets on
 // restart, which is fine for a personal single-instance app.
 let lastSyncCompletedAt: string | null = null;
+let lastSyncError: string | null = null;
 
 // Every page load asks for an auto sync, but navigating between Today,
 // Journal and Plan within a few seconds must not fire three real Strava
@@ -73,7 +75,7 @@ const AUTO_SYNC_MIN_INTERVAL_MS = 5 * 60 * 1000;
 const STREAM_GRACE_MS = 5 * 1000;
 const SIGKILL_GRACE_MS = 10 * 1000;
 const RELEASE_GRACE_MS = 20 * 1000;
-const OUTPUT_TAIL_CHARS = 4000;
+const OUTPUT_TAIL_CHARS = 64000;
 
 /* Drains a stream to completion but keeps only the last OUTPUT_TAIL_CHARS, so
    a chatty child cannot balloon server memory. The tail is the useful end for
@@ -107,18 +109,32 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 /* Spawns the pinned headless Claude session and returns immediately. The
    caller polls GET /api/activities/:id/analyze for the outcome.
 
-   Success is defined as exit code 0, NOT the presence of a feedback row. The
-   two are tracked separately so a session that exits clean without writing
-   feedback stays visible as a request whose feedback never appeared. */
+   Success requires valid output and a persisted feedback row. A CLI failure,
+   invalid response, or database write failure remains visible to the user. */
 function startAnalysis(
-  stravaId: number, date: string, note: string | null, account: string,
+  stravaId: number, date: string, note: string | null, account?: string,
 ): number {
+  const status = getPlanStatus(undefined, date);
+  const slot = status.weeks.flatMap(week => week.days).find(day => day.actual?.strava_id === stravaId);
+  const metrics = (activity: Record<string, unknown>) => Object.fromEntries([
+    "strava_id", "name", "type", "distance", "moving_time", "start_date_local", "average_speed",
+    "average_heartrate", "max_heartrate", "average_cadence", "total_elevation_gain",
+    "weather_temp", "weather_feels", "weather_humidity", "weather_wind",
+  ].map(key => [key, activity[key] ?? null]));
+  const context = {
+    activity: metrics(getActivityByStravaId(stravaId)!),
+    splits: getSplitsForActivity(stravaId),
+    prescribed: slot?.plan ?? null,
+    plan: { id: status.plan.id, race: status.plan.race, phases: status.plan.phases, glossary: status.plan.glossary, rules: status.plan.rules },
+    recentRuns: getActivities({ type: "Run", before: date + "T23:59:59", limit: 20 }).map(activity => metrics(activity as Record<string, unknown>)),
+    dailyHealth: getDailyMetricsWide({ after: date, before: date }),
+  };
   const requestId = createFeedbackRequest(stravaId, note);
   analyzing = true;
 
   let proc: Bun.Subprocess<"ignore", "pipe", "pipe">;
   try {
-    proc = Bun.spawn(buildAnalyzeCommand({ account, date, note }), {
+    proc = Bun.spawn(buildAnalyzeCommand({ account, date, note, context }), {
       cwd: join(import.meta.dir, ".."),
       env: buildSpawnEnv(process.env),
       stdout: "pipe",
@@ -192,6 +208,12 @@ function startAnalysis(
       ]);
 
       if (exitCode === 0 && !timedOut) {
+        const feedback = parseAnalysisOutput(out);
+        upsertFeedback(stravaId, {
+          plan_date: slot?.date ?? date, plan_id: status.plan.id,
+          prescribed_type: slot?.plan.type ?? "unplanned", prescribed_miles: slot?.plan.miles ?? null,
+          analysis_json: JSON.stringify(feedback.analysis), narrative: feedback.narrative,
+        });
         settle("done", null, 0);
         return;
       }
@@ -213,13 +235,16 @@ function startAnalysis(
 
 const server = Bun.serve({
   port: PORT,
+  hostname: HOST,
   idleTimeout: 255,
   async fetch(req) {
     const url = new URL(req.url);
     const path = url.pathname;
+    try {
 
     // --- Auth routes ---
     if (path === "/auth/strava") {
+      if (!isStravaConfigured()) return json({ error: "Set STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET to connect Strava" }, 503);
       return Response.redirect(getAuthUrl(), 302);
     }
 
@@ -239,6 +264,9 @@ const server = Bun.serve({
       const tokens = getTokens();
       return json({
         authenticated: !!tokens,
+        stravaConfigured: isStravaConfigured(),
+        analysis: getAnalysisAvailability(process.env),
+        syncError: lastSyncError,
         athleteId: tokens?.athlete_id ?? null,
         athlete: tokens?.athlete_json ? JSON.parse(tokens.athlete_json) : null,
         activityCount: getActivityCount(),
@@ -265,10 +293,17 @@ const server = Bun.serve({
         return json({ skipped: true });
       }
 
+      if (!isStravaConfigured()) {
+        return isAuto ? json({ skipped: true }) : json({ error: "Strava is not configured" }, 503);
+      }
+      if (!getTokens() && !(process.env.STRAVA_ACCESS_TOKEN && process.env.STRAVA_REFRESH_TOKEN)) {
+        return isAuto ? json({ skipped: true }) : json({ error: "Connect Strava before syncing" }, 401);
+      }
       if (syncing) return json({ error: "Sync already in progress" }, 409);
+      lastSyncError = null;
       syncing = true;
       syncActivities({ full: (body as { full?: boolean }).full })
-        .catch((e) => console.error("Sync failed:", e))
+        .catch((e) => { lastSyncError = String(e); console.error("Sync failed:", e); })
         .finally(() => { syncing = false; lastSyncCompletedAt = new Date().toISOString(); });
       return json({ started: true });
     }
@@ -337,7 +372,9 @@ const server = Bun.serve({
         });
         if (!decision.ok) return json(decision.body, decision.status);
 
-        let account: string;
+        const availability = getAnalysisAvailability(process.env);
+        if (!availability.available) return json({ error: availability.message }, 503);
+        let account: string | undefined;
         try {
           account = resolveAccount(process.env);
         } catch (e) {
@@ -352,8 +389,12 @@ const server = Bun.serve({
         const date = String(activity.start_date_local ?? "").slice(0, 10);
         if (!date) return json({ error: "Activity has no date" }, 500);
 
-        const requestId = startAnalysis(stravaId, date, normalizeNote(body.note), account);
-        return json({ started: true, request_id: requestId }, 202);
+        try {
+          const requestId = startAnalysis(stravaId, date, normalizeNote(body.note), account);
+          return json({ started: true, request_id: requestId }, 202);
+        } catch (error) {
+          return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+        }
       }
     }
 
@@ -419,7 +460,10 @@ const server = Bun.serve({
     }
 
     // --- Static files ---
-    return serveStatic(path);
+    return await serveStatic(path);
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
   },
 });
 

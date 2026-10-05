@@ -1,5 +1,6 @@
 import { Database } from "bun:sqlite";
-import { join } from "path";
+import { join, resolve } from "path";
+import { mkdirSync } from "node:fs";
 import type { DailyMetric } from "./health";
 
 /* The named parameter object bun:sqlite accepts. Deliberately not
@@ -8,7 +9,9 @@ import type { DailyMetric } from "./health";
    it. Values here are scalars only. */
 type Bindings = Record<string, string | bigint | NodeJS.TypedArray | number | boolean | null>;
 
-const DB_PATH = join(import.meta.dir, "../data/training.db");
+const DATA_DIR = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : join(import.meta.dir, "../data");
+mkdirSync(DATA_DIR, { recursive: true });
+const DB_PATH = join(DATA_DIR, "training.db");
 const db = new Database(DB_PATH, { create: true });
 
 db.exec("PRAGMA journal_mode = WAL");

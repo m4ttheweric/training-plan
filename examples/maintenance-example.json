@@ -1,0 +1,30 @@
+{
+  "$schema": "../schemas/training-plan.schema.json",
+  "id": "maintenance-example",
+  "name": "Maintenance example",
+  "subtitle": "One illustrative week; customize dates and mileage for your own base.",
+  "startDate": "2026-11-02",
+  "phases": [
+    { "id": "maintenance", "name": "Maintenance", "tag": "3 runs", "description": "Easy running with rest days between sessions.", "weeks": [1] }
+  ],
+  "weeks": [
+    {
+      "week": 1,
+      "days": [
+        { "type": "run", "miles": 3, "detail": "easy" },
+        { "type": "rest" },
+        { "type": "run", "miles": 3, "detail": "easy" },
+        { "type": "rest" },
+        { "type": "rest" },
+        { "type": "long", "miles": 3, "detail": "easy" },
+        { "type": "rest" }
+      ]
+    }
+  ],
+  "glossary": [
+    { "term": "easy", "definition": "Use your own comfortable, conversational effort." },
+    { "term": "long", "definition": "The longest scheduled run of the week, at easy effort." }
+  ],
+  "rules": [],
+  "callout": "An example of the file format, ready to adapt to your own schedule."
+}

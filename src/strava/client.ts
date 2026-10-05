@@ -1,4 +1,5 @@
 import { getTokens, saveTokens } from "../db";
+import { getServerConfig } from "../config";
 
 const STRAVA_API = "https://www.strava.com/api/v3";
 const TOKEN_URL = "https://www.strava.com/oauth/token";
@@ -95,7 +96,8 @@ export async function stravaPut<T = unknown>(path: string, body: Record<string, 
 }
 
 export function getAuthUrl() {
-  const base = process.env.BASE_URL || "https://training.localhost";
+  if (!isStravaConfigured()) throw new Error("Set STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET to connect Strava");
+  const base = getServerConfig(process.env).baseUrl;
   const params = new URLSearchParams({
     client_id: process.env.STRAVA_CLIENT_ID!,
     redirect_uri: `${base}/auth/strava/callback`,
@@ -129,4 +131,9 @@ export async function exchangeCode(code: string) {
 
   saveTokens(data.access_token, data.refresh_token, data.expires_at, data.athlete.id, JSON.stringify(data.athlete));
   return data;
+}
+
+
+export function isStravaConfigured(): boolean {
+  return Boolean(process.env.STRAVA_CLIENT_ID?.trim() && process.env.STRAVA_CLIENT_SECRET?.trim());
 }

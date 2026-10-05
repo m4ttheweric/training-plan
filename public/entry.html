@@ -75,8 +75,14 @@ function deltaCells(an) {
 }
 
 let hasFeedback = false;
+let analysisAvailable = false;
+let analysisMessage = "Run analysis is disabled.";
 
 function analyzeIdle() {
+  if (!analysisAvailable) {
+    document.getElementById("arow").innerHTML = '<span class="anote">' + esc(analysisMessage) + '</span>';
+    return;
+  }
   document.getElementById("arow").innerHTML =
     '<button class="chip light chipbtn" id="abtn">' +
     (hasFeedback ? "Re-analyze" : "Analyze this run") + '</button>';
@@ -119,8 +125,7 @@ async function awaitAnalysis() {
       const landed = await fetch("/api/activities/" + id + "/feedback")
         .then(r => r.ok).catch(() => false);
       await load();
-      /* Exit code 0 does not mean the session wrote anything. Surfacing the
-         difference is the whole point of tracking them separately. */
+      // Verify the persisted result before displaying the completed analysis.
       if (!landed) fail("The analysis finished but did not write any feedback. Try again.");
       return;
     }
@@ -149,6 +154,9 @@ function fail(message) {
 }
 
 async function load() {
+  const status = await fetch("/api/status").then(r => r.json());
+  analysisAvailable = status.analysis?.available === true;
+  analysisMessage = status.analysis?.message || "Run analysis is unavailable.";
   const acts = await fetch("/api/activities?limit=400").then(r => r.json());
   const a = acts.find(x => String(x.strava_id) === String(id));
   if (!a) {
