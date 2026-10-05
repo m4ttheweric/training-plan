@@ -9,7 +9,7 @@
 <body>
 <div class="shell" id="root"></div>
 <script type="module">
-import { esc, fmtMiles, fmtPaceFromSpeed, fmtDayLabel, renderMarkdown, firstParagraph } from "/lib.js";
+import { esc, fmtMiles, fmtPaceFromSpeed, fmtDayLabel, renderMarkdown, firstParagraph, finiteNumber as num } from "/lib.js";
 import { requestAnalysis, pollAnalysis, friendlyError, resumeState } from "/analyze.js";
 
 const NAV = '<nav class="nav">' +
@@ -207,14 +207,6 @@ async function load() {
 }
 
 function safeParse(s) { try { return JSON.parse(s); } catch { return null; } }
-
-/* analysis_json is written by an API route that does no runtime validation, so
-   never trust these values to be numbers. Coerce, and drop the cell if it is
-   not a finite number. */
-function num(v) {
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) ? n : null;
-}
 
 load().catch(e => {
   document.getElementById("root").innerHTML = NAV +

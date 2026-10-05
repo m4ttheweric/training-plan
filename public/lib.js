@@ -33,6 +33,14 @@ export function fmtMiles(meters) {
   return ((meters || 0) / METRES_PER_MILE).toFixed(2);
 }
 
+/* Legacy feedback can contain strings or malformed metrics. Never coerce
+   objects or turn absent values into a misleading zero. */
+export function finiteNumber(value) {
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 function mmss(totalSeconds) {
   const s = Math.round(totalSeconds);
   const m = Math.floor(s / 60);

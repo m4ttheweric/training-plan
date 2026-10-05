@@ -7,6 +7,7 @@ import { getPlanStatus, getAvailablePlans } from "./plan";
 import { getRecovery } from "./recovery";
 import { getToday } from "./today";
 import { getJournal } from "./journal";
+import { localDate } from "../public/lib.js";
 import { ANALYZE_TIMEOUT_MS, buildAnalyzeCommand, buildSpawnEnv, decideAnalyzeRequest, normalizeNote, resolveAccount, getAnalysisAvailability, parseAnalysisOutput } from "./analyze";
 
 import { getServerConfig } from "./config";
@@ -114,7 +115,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 function startAnalysis(
   stravaId: number, date: string, note: string | null, account?: string,
 ): number {
-  const status = getPlanStatus(undefined, date);
+  // Use the dashboard's matching horizon, including sessions completed early.
+  // Historical metrics below still end at the activity's own date.
+  const today = localDate();
+  const status = getPlanStatus(undefined, date > today ? date : today);
   const slot = status.weeks.flatMap(week => week.days).find(day => day.actual?.strava_id === stravaId);
   const metrics = (activity: Record<string, unknown>) => Object.fromEntries([
     "strava_id", "name", "type", "distance", "moving_time", "start_date_local", "average_speed",

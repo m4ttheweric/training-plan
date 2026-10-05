@@ -24,7 +24,7 @@ beforeAll(async () => {
   writeFileSync(join(bin, "claude"), '#!/bin/sh\ncat "$FAKE_CLAUDE_RESPONSE_FILE"\n');
   chmodSync(join(bin, "claude"), 0o755);
   const env = { ...process.env, HOME: dir, DATA_DIR: join(dir, "new/data"), PORT: String(port), HOST: "127.0.0.1", BASE_URL: "", PLAN_ID: "10k-oct-2026", FEEDBACK_ENABLED: "true", FEEDBACK_CLAUDE_ACCOUNT: "", STRAVA_CLIENT_ID: "", STRAVA_CLIENT_SECRET: "", STRAVA_ACCESS_TOKEN: "", STRAVA_REFRESH_TOKEN: "", FAKE_CLAUDE_RESPONSE_FILE: responsePath };
-  const seed = Bun.spawnSync([process.execPath, "-e", `import { upsertActivity } from './src/db'; upsertActivity({id:123,name:'Test run',type:'Run',sport_type:'Run',distance:4828,moving_time:1800,start_date:'2026-07-06T12:00:00Z',start_date_local:'2026-07-06T07:00:00',average_speed:2.682});`], { cwd: root, env, stdout: "pipe", stderr: "pipe" });
+  const seed = Bun.spawnSync([process.execPath, "-e", `import { upsertActivity } from './src/db'; for (const [id,day] of [[123,'06'],[124,'08']]) upsertActivity({id,name:'Test run',type:'Run',sport_type:'Run',distance:4828,moving_time:1800,start_date:'2026-07-'+day+'T12:00:00Z',start_date_local:'2026-07-'+day+'T07:00:00',average_speed:2.682});`], { cwd: root, env, stdout: "pipe", stderr: "pipe" });
   if (seed.exitCode !== 0) throw new Error(new TextDecoder().decode(seed.stderr));
   proc = Bun.spawn([process.execPath, "src/server.ts"], { cwd: root, env, stdout: "pipe", stderr: "pipe" });
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -42,9 +42,9 @@ afterAll(async () => {
 async function post(path: string, body: unknown) {
   return fetch(base + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 }
-async function outcome() {
+async function outcome(id = 123) {
   for (let attempt = 0; attempt < 100; attempt++) {
-    const request = await fetch(base + "/api/activities/123/analyze").then(r => r.json()) as any;
+    const request = await fetch(base + `/api/activities/${id}/analyze`).then(r => r.json()) as any;
     if (request.status !== "running") return request;
     await Bun.sleep(30);
   }
@@ -90,4 +90,14 @@ test("re-analysis requires confirmation and invalid output preserves old feedbac
   expect((await post("/api/activities/123/analyze", { force: true })).status).toBe(202);
   expect((await outcome()).status).toBe("failed");
   expect((await fetch(base + "/api/activities/123/feedback").then(r => r.json()) as any).narrative).toBe("A steady run.");
+});
+
+test("analysis retains the dashboard prescription for a run completed early", async () => {
+  writeFileSync(responsePath, goodOutput);
+  expect((await post("/api/activities/124/analyze", {})).status).toBe(202);
+  expect((await outcome(124)).status).toBe("done");
+  const feedback = await fetch(base + "/api/activities/124/feedback").then(r => r.json()) as any;
+  expect(feedback.plan_date).toBe("2026-07-09");
+  expect(feedback.prescribed_type).toBe("run");
+  expect(feedback.prescribed_miles).toBe(3);
 });

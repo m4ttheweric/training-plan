@@ -1,7 +1,7 @@
 import { expect, test, describe } from "bun:test";
 import {
   esc, fmtMiles, fmtPaceFromSpeed, fmtDuration,
-  fmtDayLabel, fmtWeekday, renderMarkdown, localDate, firstParagraph,
+  fmtDayLabel, fmtWeekday, renderMarkdown, localDate, firstParagraph, finiteNumber,
 } from "../public/lib.js";
 
 /* Run a one-line script under an explicit TZ in a subprocess. localDate's
@@ -16,6 +16,16 @@ function runIn(tz: string, expr: string): string {
 }
 
 describe("formatting", () => {
+  test("optional numeric feedback preserves zero and numeric strings", () => {
+    expect(finiteNumber(0)).toBe(0);
+    expect(finiteNumber(-1)).toBe(-1);
+    expect(finiteNumber(" 170 ")).toBe(170);
+  });
+  test("missing or malformed numeric feedback stays missing without object coercion", () => {
+    for (const value of [null, undefined, "", " ", "fast", Infinity, NaN, [], {}, { valueOf: 1, toString: 1 }]) {
+      expect(finiteNumber(value)).toBeNull();
+    }
+  });
   test("fmtMiles converts metres to two decimals", () => {
     expect(fmtMiles(6524.4)).toBe("4.05");
     expect(fmtMiles(5006.1)).toBe("3.11");

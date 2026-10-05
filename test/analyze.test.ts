@@ -27,6 +27,7 @@ describe("portable optional analysis", () => {
   test("disables tools and avoids bypassing permissions", () => {
     const cmd = buildAnalyzeCommand(OPTS);
     expect(cmd[cmd.indexOf("--tools") + 1]).toBe("");
+    expect(cmd).toContain("--safe-mode");
     expect(cmd).not.toContain("--dangerously-skip-permissions");
   });
   test("is disabled until explicitly enabled", () => {
@@ -69,6 +70,19 @@ describe("analysis prompt and result", () => {
   });
   test("accepts a fenced JSON response", () => {
     expect(parseAnalysisOutput('```json\n{"analysis":{},"narrative":"Steady run."}\n```').narrative).toBe("Steady run.");
+  });
+  test("accepts supported numeric metrics and findings", () => {
+    const analysis = { baseline: { avg_hr: 140 }, deltas: { hr_vs_baseline: -1, pace_vs_baseline_s_per_mi: 0, feels_temp_vs_baseline_f: 5 }, cadence_spm: 170, key_findings: ["Even effort"] };
+    expect(parseAnalysisOutput(JSON.stringify({ analysis, narrative: "Steady." })).analysis).toEqual(analysis);
+  });
+  test.each([
+    { deltas: { hr_vs_baseline: null } },
+    { cadence_spm: { valueOf: 1, toString: 1 } },
+    { baseline: [] }, { baseline: { avg_hr: "fast" } },
+    { deltas: null }, { deltas: { pace_vs_baseline_s_per_mi: "12" } },
+    { key_findings: [42] }, { key_findings: "Good" },
+  ])("rejects malformed optional metrics %j", analysis => {
+    expect(() => parseAnalysisOutput(JSON.stringify({ analysis, narrative: "Steady." }))).toThrow();
   });
   test.each(['garbage', '{}', '{"analysis":[],"narrative":"Run"}', '{"analysis":{},"narrative":""}'])("rejects unusable analysis %s", output => {
     expect(() => parseAnalysisOutput(output)).toThrow();

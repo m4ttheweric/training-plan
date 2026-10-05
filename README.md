@@ -2,7 +2,7 @@
 
 A local running-plan dashboard for your own training. Write a plan as JSON, see today's workout and upcoming weeks, and optionally compare it with your Strava activities. The code is Bun, SQLite, TypeScript, and plain browser JavaScript.
 
-This is a personal tool you can clone and adapt. Each checkout has its own database and one runner's Strava connection. There are no hosted accounts or subscription service. Plan viewing works without Strava, Apple Health, or an AI account.
+Clone and adapt this personal tool. Each checkout has its own database and one runner's Strava connection. Plan viewing works without Strava, Apple Health, or an AI account.
 
 ## Installation
 
@@ -84,15 +84,15 @@ Sync imports activity history, mile splits, and historical weather. It runs in t
 
 ## Run analysis (optional)
 
-Install and authenticate [Claude Code](https://code.claude.com/docs/en/overview), confirm `claude` is on your server's PATH, and set:
+Install and authenticate [Claude Code](https://code.claude.com/docs/en/overview) with `--safe-mode` support (tested with 2.1.289), confirm `claude` is on PATH, and set:
 
 ```dotenv
 FEEDBACK_ENABLED=true
 ```
 
-Restart, open a run in Journal, and choose **Analyze this run**. No external analysis skill is needed. The app sends the selected run, splits, plan, recent runs, and available daily health metrics to your configured Claude account. It requests an Opus analysis with tools disabled, validates the response, and stores the narrative locally. Usage follows your Claude subscription or API account.
+Restart, open a run in Journal, and choose **Analyze this run**. The app sends the selected run, splits, plan, recent runs, and available daily health metrics to your configured Claude account. It requests an Opus analysis with tools and startup customizations disabled, validates the response, and stores the narrative locally. No external analysis skill is needed. Usage follows your Claude subscription or API account.
 
-By default it uses Claude's current authenticated account. If you already use `cswap`, set `FEEDBACK_CLAUDE_ACCOUNT` to the email of the account you want; then both `claude` and `cswap` must be on PATH. No author's account is assumed. The [Claude CLI reference](https://code.claude.com/docs/en/cli-reference) describes the command options.
+By default it uses Claude's current authenticated account. If you already use `cswap`, set `FEEDBACK_CLAUDE_ACCOUNT` to the email of the account you want; then both `claude` and `cswap` must be on PATH. The [Claude CLI reference](https://code.claude.com/docs/en/cli-reference) describes the command options.
 
 Analysis is disabled by default. The UI reports missing setup instead of offering an action that cannot run. A failed CLI call or invalid response keeps previous feedback intact. Re-analysis requires confirmation; only one analysis runs at a time, with a five-minute timeout.
 
