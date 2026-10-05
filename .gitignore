@@ -1,8 +1,10 @@
 node_modules/
 data/
 .env
-.superpowers/brainstorm/
-.superpowers/sdd/*/
+.env.*
+!.env.example
+.superpowers/
 .local-dev/
 .DS_Store
 logs/
+/training.db*
