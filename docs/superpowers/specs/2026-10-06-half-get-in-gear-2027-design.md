@@ -5,17 +5,17 @@ Plan file: `plans/half-get-in-gear-2027.json`
 ## Brief
 
 - **Race:** Get in Gear Half, Minneapolis, Sat Apr 24 2027 (confirmed). Flat river parkways, 15 min from home.
-- **Goal:** 2:00-2:03 (~9:10/mi). Sub-2:00 is decided after the week 24 tune-up, not now.
+- **Goal:** 2:00-2:03 (~9:10/mi). Sub-2:00 is decided after the week 25 tune-up, not now.
 - **Structure kept from the 10K plan:** 4 runs + 3 lifts. Mon long / Tue squat / Wed easy + strides + bench / Thu rest / Fri quality / Sat easy + deadlift / Sun rest.
 - **Athlete:** 40, base 13-18 mi/wk, longest run 7.7 mi, 10K 55:14 (6.26 mi), 5K 26:11, ~6.2 h sleep. Soleus resolved: no calf-specific rules.
 
 ## Shape
 
-- 28 weeks, Mon Oct 12 2026 to Apr 24 2027, as one plan.
-- **Base (wk 1-12):** all easy except strides, hills (wk 5-7) and fartlek (wk 9-11). Cutback every 4th week (3:1).
-- **Race build (wk 13-28):** threshold, then race-specific, peak, taper, race week. Cutback every 3rd week (2:1).
+- 29 weeks, Mon Oct 5 2026 to Apr 24 2027, as one plan. Week 1 is the post-10K recovery week (10.5 mi, all easy, light lifts).
+- **Base (wk 2-13):** all easy except strides, hills (wk 6-8) and fartlek (wk 10-12). Cutback every 4th week (3:1).
+- **Race build (wk 14-29):** threshold, then race-specific, peak, taper, race week. Cutback every 3rd week (2:1).
 - **Volume:** 14 mi/wk grows to a 26.5 mi peak. The long run grows from 6 to 11 mi.
-- **Taper:** the last 11-miler is 19 days out. Wk 27 cuts ~30%. Race week is 9 mi plus the race.
+- **Taper:** the last 11-miler is 19 days out. Wk 28 cuts ~30%. Race week is 9 mi plus the race.
 
 ## Evidence behind the choices
 
