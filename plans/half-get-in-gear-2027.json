@@ -111,7 +111,7 @@
       "name": "Race week",
       "tag": "Get in Gear · Apr 24",
       "type": "race",
-      "description": "Minimal running: easy Monday, strides Wednesday, a 2-mile shakeout Thursday, rest Friday. No deadlift and no squat: the race replaces them. Bench and upper body stay light.",
+      "description": "Minimal running: easy Monday, strides Wednesday, a 2-mile shakeout Thursday, rest Friday. Tuesday is a light bench session; no squat or deadlift this week, the race replaces them.",
       "weeks": [
         29
       ]
@@ -1105,13 +1105,13 @@
         },
         {
           "type": "lift",
-          "label": "Upper body",
+          "label": "Bench",
           "detail": "light"
         },
         {
           "type": "run",
           "miles": 3,
-          "detail": "+ strides + Bench lt"
+          "detail": "+ strides"
         },
         {
           "type": "run",
