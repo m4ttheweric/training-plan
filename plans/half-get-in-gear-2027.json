@@ -1,0 +1,1209 @@
+{
+  "$schema": "../schemas/training-plan.schema.json",
+  "id": "half-get-in-gear-2027",
+  "name": "Half Marathon Plan",
+  "subtitle": "Oct 12, 2026 -- Apr 24, 2027 · 28 weeks · 4 runs + 3 lifts/wk · 12-wk base → 16-wk race build → Get in Gear Half",
+  "startDate": "2026-10-12",
+  "race": {
+    "name": "Get in Gear Half Marathon",
+    "date": "2027-04-24",
+    "distance": 13.1,
+    "targetPace": "~9:10/mi",
+    "targetTime": "2:00-2:03"
+  },
+  "phases": [
+    {
+      "id": "base-easy",
+      "name": "Base",
+      "tag": "Easy volume · wk 1-4",
+      "description": "Absorb the 10K and rebuild the week around frequency. Every run is easy by heart rate (Zone 2, ≤147). Strides return on Wednesday from week 2. Weeks 1-12 run three build weeks to one cutback: the work is nearly all easy, so the recovery cost per week is low.",
+      "weeks": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "id": "base-hills",
+      "name": "Base",
+      "tag": "Hills · wk 5-8",
+      "description": "Friday becomes hill repeats, 6 growing to 8 reps. Hills build power and economy with less pounding than flat speed. The long run grows half a mile at a time toward 8.",
+      "weeks": [
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "id": "base-fartlek",
+      "name": "Base",
+      "tag": "Fartlek · wk 9-12",
+      "description": "Friday shifts to 1-minute pickups at 10K effort: the first sustained faster running of the plan, still unstructured. The long run reaches 9 miles by Christmas week. Week 12 is a cutback before the race build starts.",
+      "weeks": [
+        9,
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "id": "threshold",
+      "name": "Threshold",
+      "tag": "Race build · wk 13-18",
+      "description": "Lactate threshold is the strongest predictor of half-marathon time, so it comes first. Friday is cruise intervals at T pace (8:45-8:55/mi), building to a continuous tempo. From here the rhythm is two build weeks to one cutback: quality day plus a 9-10 mile long run every week costs more to absorb after 40.",
+      "weeks": [
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "id": "race-specific",
+      "name": "Race-specific",
+      "tag": "Race build · wk 19-24",
+      "description": "Friday alternates half-marathon-pace runs (3 to 4 miles at 9:10/mi) with threshold intervals. Every other long run finishes with 2 miles at HMP. Week 24 is a cutback with a tune-up race on Friday: that result sets the final race pace and decides whether sub-2:00 is on.",
+      "weeks": [
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ]
+    },
+    {
+      "id": "peak",
+      "name": "Peak",
+      "tag": "Race build · wk 25-26",
+      "description": "Two 11-mile long runs; the second finishes with 3 miles at goal pace. Friday of week 25 is a 5-mile dress rehearsal at HMP. The last long run lands 19 days before the race.",
+      "weeks": [
+        25,
+        26
+      ]
+    },
+    {
+      "id": "taper",
+      "name": "Taper",
+      "tag": "Race prep · wk 27",
+      "type": "recovery",
+      "description": "Cut volume ~30%, keep frequency and a short HMP segment so the legs stay sharp. All three lifts drop ~30% in weight.",
+      "weeks": [
+        27
+      ]
+    },
+    {
+      "id": "race",
+      "name": "Race week",
+      "tag": "Get in Gear · Apr 24",
+      "type": "race",
+      "description": "Minimal running: easy Monday, strides Wednesday, a 2-mile shakeout Thursday, rest Friday. No deadlift and no squat: the race replaces them. Bench and upper body stay light.",
+      "weeks": [
+        28
+      ]
+    }
+  ],
+  "afterPlan": {
+    "name": "After the race",
+    "tag": "Steady state",
+    "description": "Take 4-5 easy days (a half costs more than the 10K did), then return to the week 9-12 pattern as a repeating cycle at ~20 mi/week until the next goal is set."
+  },
+  "weeks": [
+    {
+      "week": 1,
+      "days": [
+        {
+          "type": "long",
+          "miles": 6
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "easy"
+        },
+        {
+          "type": "run",
+          "miles": 2,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 2,
+      "days": [
+        {
+          "type": "long",
+          "miles": 6.5
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "easy"
+        },
+        {
+          "type": "run",
+          "miles": 2,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 3,
+      "days": [
+        {
+          "type": "long",
+          "miles": 7
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "easy"
+        },
+        {
+          "type": "run",
+          "miles": 2.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 4,
+      "days": [
+        {
+          "type": "long",
+          "miles": 5
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 2.5,
+          "detail": "+ Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "easy"
+        },
+        {
+          "type": "run",
+          "miles": 2,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ],
+      "recovery": true
+    },
+    {
+      "week": 5,
+      "days": [
+        {
+          "type": "long",
+          "miles": 7
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "hills",
+          "reps": 6
+        },
+        {
+          "type": "run",
+          "miles": 2.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 6,
+      "days": [
+        {
+          "type": "long",
+          "miles": 7.5
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "hills",
+          "reps": 7
+        },
+        {
+          "type": "run",
+          "miles": 2.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 7,
+      "days": [
+        {
+          "type": "long",
+          "miles": 8
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "hills",
+          "reps": 8
+        },
+        {
+          "type": "run",
+          "miles": 2.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 8,
+      "days": [
+        {
+          "type": "long",
+          "miles": 6
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "easy"
+        },
+        {
+          "type": "run",
+          "miles": 2,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ],
+      "recovery": true
+    },
+    {
+      "week": 9,
+      "days": [
+        {
+          "type": "long",
+          "miles": 8
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "fartlek",
+          "reps": 6
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 10,
+      "days": [
+        {
+          "type": "long",
+          "miles": 8.5
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 4.5,
+          "detail": "fartlek",
+          "reps": 7
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 11,
+      "days": [
+        {
+          "type": "long",
+          "miles": 9
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 4.5,
+          "detail": "fartlek",
+          "reps": 8
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 12,
+      "days": [
+        {
+          "type": "long",
+          "miles": 6.5
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "easy"
+        },
+        {
+          "type": "run",
+          "miles": 2.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ],
+      "recovery": true
+    },
+    {
+      "week": 13,
+      "days": [
+        {
+          "type": "long",
+          "miles": 9
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 5,
+          "detail": "cruise"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 14,
+      "days": [
+        {
+          "type": "long",
+          "miles": 9.5
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 4.5,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 5,
+          "detail": "cruise"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 15,
+      "days": [
+        {
+          "type": "long",
+          "miles": 7
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "easy"
+        },
+        {
+          "type": "run",
+          "miles": 2.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ],
+      "recovery": true
+    },
+    {
+      "week": 16,
+      "days": [
+        {
+          "type": "long",
+          "miles": 9.5
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 4.5,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 5,
+          "detail": "long cruise"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 17,
+      "days": [
+        {
+          "type": "long",
+          "miles": 10
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 4.5,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 5.5,
+          "detail": "tempo"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 18,
+      "days": [
+        {
+          "type": "long",
+          "miles": 7
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "+ Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "easy"
+        },
+        {
+          "type": "run",
+          "miles": 2.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ],
+      "recovery": true
+    },
+    {
+      "week": 19,
+      "days": [
+        {
+          "type": "long",
+          "miles": 10
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 5,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 5.5,
+          "detail": "HMP 3"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 20,
+      "days": [
+        {
+          "type": "long",
+          "miles": 10.5,
+          "detail": "fast finish"
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 5,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 6,
+          "detail": "long cruise"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 21,
+      "days": [
+        {
+          "type": "long",
+          "miles": 7.5
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "+ Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "easy"
+        },
+        {
+          "type": "run",
+          "miles": 2.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ],
+      "recovery": true
+    },
+    {
+      "week": 22,
+      "days": [
+        {
+          "type": "long",
+          "miles": 10.5
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 5,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 6,
+          "detail": "HMP 4"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 23,
+      "days": [
+        {
+          "type": "long",
+          "miles": 11,
+          "detail": "fast finish"
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 5,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 6,
+          "detail": "cruise"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 24,
+      "days": [
+        {
+          "type": "long",
+          "miles": 8
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 3.5,
+          "detail": "+ Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "tune-up"
+        },
+        {
+          "type": "run",
+          "miles": 2.5,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ],
+      "recovery": true
+    },
+    {
+      "week": 25,
+      "days": [
+        {
+          "type": "long",
+          "miles": 11
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 5,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 6,
+          "detail": "HMP 5"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 26,
+      "days": [
+        {
+          "type": "long",
+          "miles": 11,
+          "detail": "fast finish 3"
+        },
+        {
+          "type": "lift",
+          "label": "Squat"
+        },
+        {
+          "type": "run",
+          "miles": 5.5,
+          "detail": "+ strides + Bench"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 6,
+          "detail": "cruise"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "+ Dead"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 27,
+      "days": [
+        {
+          "type": "long",
+          "miles": 7
+        },
+        {
+          "type": "lift",
+          "label": "Squat",
+          "detail": "light"
+        },
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "+ strides + Bench lt"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "run",
+          "miles": 4.5,
+          "detail": "HMP 2"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ Dead lt"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "week": 28,
+      "days": [
+        {
+          "type": "run",
+          "miles": 4,
+          "detail": "easy"
+        },
+        {
+          "type": "lift",
+          "label": "Upper body",
+          "detail": "light"
+        },
+        {
+          "type": "run",
+          "miles": 3,
+          "detail": "+ strides + Bench lt"
+        },
+        {
+          "type": "run",
+          "miles": 2,
+          "detail": "shake"
+        },
+        {
+          "type": "rest"
+        },
+        {
+          "type": "race",
+          "miles": 13.1,
+          "label": "Get in Gear"
+        },
+        {
+          "type": "rest"
+        }
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "term": "easy",
+      "definition": "Zone 2 by heart rate (≤147 bpm), conversational. Pace is whatever comes out, usually ~9:40-10:15/mi."
+    },
+    {
+      "term": "long",
+      "definition": "The week's long run, Zone 2 by heart rate (≤147). The distance is the workout, not the speed."
+    },
+    {
+      "term": "+ strides",
+      "definition": "After the run: 6 x 20-sec smooth accelerations to ~90% speed, full walk-back recovery between each."
+    },
+    {
+      "term": "hills",
+      "definition": "1 mi warmup, 6-8 x 30-sec hard uphill on a 4-6% grade, jog down to recover, easy to finish the distance."
+    },
+    {
+      "term": "fartlek",
+      "definition": "1 mi warmup, 6-8 x 1 min at 10K effort with 1 min easy jog between, easy to finish the distance."
+    },
+    {
+      "term": "cruise",
+      "definition": "1 mi warmup, 3 x 1 mi at T pace (8:45-8:55/mi) with a 2-min jog between, easy to finish the distance. Comfortably hard: short phrases, not sentences."
+    },
+    {
+      "term": "long cruise",
+      "definition": "1 mi warmup, 2 x 1.5 mi at T pace (8:45-8:55/mi) with a 3-min jog between, easy to finish the distance."
+    },
+    {
+      "term": "tempo",
+      "definition": "1 mi warmup, 2.5 mi continuous at T pace (8:45-8:55/mi), easy to finish the distance."
+    },
+    {
+      "term": "HMP 2",
+      "definition": "1 mi warmup, 2 mi at half-marathon pace (~9:10/mi), easy to finish the distance."
+    },
+    {
+      "term": "HMP 3",
+      "definition": "1 mi warmup, 3 mi at half-marathon pace (~9:10/mi), easy to finish the distance."
+    },
+    {
+      "term": "HMP 4",
+      "definition": "1 mi warmup, 4 mi at half-marathon pace (~9:10/mi), easy to finish the distance."
+    },
+    {
+      "term": "HMP 5",
+      "definition": "Dress rehearsal: 1 mi warmup, 5 mi at goal race pace, wearing race-day shoes and kit, with race-morning breakfast timing."
+    },
+    {
+      "term": "fast finish",
+      "definition": "Long run in Zone 2, with the last 2 mi at half-marathon pace (~9:10/mi)."
+    },
+    {
+      "term": "fast finish 3",
+      "definition": "Long run in Zone 2, with the last 3 mi at goal race pace."
+    },
+    {
+      "term": "tune-up",
+      "definition": "A 5K race, or a solo 5K time trial on a flat route, with 1 mi warmup and cooldown. A 10K race that lands this week works too (~7.5 mi total). The result resets the T and HMP paces for the last four weeks."
+    },
+    {
+      "term": "shake",
+      "definition": "Shakeout: very short, very easy jog to keep the legs loose. Should feel almost too easy."
+    },
+    {
+      "term": "+ Bench / + Dead",
+      "definition": "Short easy run before that day's lift. The run comes first."
+    },
+    {
+      "term": "light",
+      "definition": "Reduce barbell weight ~30% from normal working sets. Keep the movement, cut the load."
+    },
+    {
+      "term": "recovery week",
+      "definition": "Weeks marked rec. Same frequency, shorter runs, no strides. Where adaptation actually happens."
+    }
+  ],
+  "rules": [
+    {
+      "label": "Pace",
+      "text": "Easy and long runs are run by heart rate: Zone 2, ≤147 bpm, whatever the pace. T (8:45-8:55/mi) and HMP (~9:10/mi) are run by pace and get recalibrated after the week 24 tune-up."
+    },
+    {
+      "label": "One quality day",
+      "text": "Friday is the only hard session, plus the long run. That keeps ~80% of the week easy, the split that beat threshold-heavy training for recreational runners (Muñoz/Seiler 2014). Never add a second one."
+    },
+    {
+      "label": "Long run",
+      "text": "Monday, off Sunday rest and a Saturday short run: two days of fresh legs. Each new long run is at most ~0.5 mi past the longest run of the prior 30 days; single-run spikes over 10% carry 1.5-2.3x overuse risk (Frandsen 2025)."
+    },
+    {
+      "label": "Midweek runs",
+      "text": "Never skip Wednesday or Saturday to protect the long run, and never stack missed miles onto Monday. Connective tissue adapts to how often it is loaded, not to one big day."
+    },
+    {
+      "label": "Lifting",
+      "text": "Squat Tuesday, bench after Wednesday's run, deadlift after Saturday's run. No heavy legs the day before the long run. Week 27: all lifts ~30% lighter. Race week: no squat or deadlift."
+    },
+    {
+      "label": "Sleep gate",
+      "text": "Under 6.5 h the night before Friday's session: run it easy instead. Two short nights in a row before Monday: cut the long run to the last cutback week's distance. Poor sleepers carry ~1.8x injury risk (de Jonge 2025)."
+    },
+    {
+      "label": "Cutback weeks",
+      "text": "Weeks 1-12 cut back every 4th week; weeks 13-24 every 3rd, the recovery rhythm masters coaching favors once a quality day and a 9-11 mi long run stack up. Don't skip them and don't use them to make up missed miles."
+    },
+    {
+      "label": "Winter",
+      "text": "Ice or windchill below ~0°F: T and HMP sessions move to the treadmill at 1% incline. Long runs stay outside with traction (Yaktrax) where possible; split treadmill + outdoor before a 10-mile treadmill slog. Dress for 15-20°F warmer than the actual temperature."
+    },
+    {
+      "label": "Illness",
+      "text": "Symptoms above the neck only: run easy, skip quality. Below the neck or fever: rest. After 3+ days off, resume at the most recent cutback week's volume."
+    },
+    {
+      "label": "Race plan",
+      "text": "Miles 1-2 at ~9:15, settle to goal pace for 3-10, race the last 5K. Goal pace is set from the week 24 tune-up: 2:00-2:03 by default, sub-2:00 (9:09/mi) only if the tune-up and the week 26 long run both support it."
+    }
+  ],
+  "callout": "**Same engine, longer race.** Your 10K and 5K both predict a 2:00-2:03 half. The gap to sub-2:00 isn't speed, it's durability at 13.1: the plan spends 12 easy weeks building the frequency and long-run distance to carry 9:10/mi for two hours, then 16 weeks sharpening it."
+}
