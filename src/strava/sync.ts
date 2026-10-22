@@ -1,5 +1,6 @@
 import { stravaGet } from "./client";
-import { upsertActivity, getLastSyncedDate, getActivityCount, insertSplits, getRunsMissingSplits, updateActivityDetail } from "../db";
+import { upsertActivity, getLastSyncedDate, getActivityCount, insertSplits, insertLaps, getRunsMissingSplits, getRecentRunsMissingLaps, updateActivityDetail } from "../db";
+import type { LapRow } from "../db";
 import { backfillWeather } from "../weather";
 
 interface StravaActivity {
@@ -39,35 +40,44 @@ interface StravaDetailActivity {
     average_heartrate: number | null;
     pace_zone: number;
   }>;
+  laps?: LapRow[];
   calories?: number;
   suffer_score?: number;
   description?: string;
 }
 
-async function backfillSplits() {
-  const missing = getRunsMissingSplits();
-  if (!missing.length) return { updated: 0 };
+const LAP_BACKFILL_DAYS = 120;
+const LAP_BACKFILL_LIMIT = 40;
+
+/* One detail request fills both splits and laps, so a run missing either is
+   fetched once. */
+async function backfillDetails() {
+  const lapsAfter = new Date(Date.now() - LAP_BACKFILL_DAYS * 86400_000).toISOString().slice(0, 10);
+  const ids = new Set([
+    ...getRunsMissingSplits().map(r => r.strava_id),
+    ...getRecentRunsMissingLaps(lapsAfter, LAP_BACKFILL_LIMIT).map(r => r.strava_id),
+  ]);
+  if (!ids.size) return { updated: 0 };
 
   let updated = 0;
-  for (const { strava_id } of missing) {
+  for (const strava_id of ids) {
     try {
       const detail = await stravaGet<StravaDetailActivity>(`/activities/${strava_id}`);
-      if (detail.splits_standard?.length) {
-        insertSplits(strava_id, detail.splits_standard);
-        updated++;
-      }
+      if (detail.splits_standard?.length) insertSplits(strava_id, detail.splits_standard);
+      if (detail.laps?.length) insertLaps(strava_id, detail.laps);
+      if (detail.splits_standard?.length || detail.laps?.length) updated++;
       updateActivityDetail(strava_id, {
         calories: detail.calories,
         suffer_score: detail.suffer_score,
         description: detail.description,
       });
     } catch (e) {
-      console.error(`Split fetch failed for activity ${strava_id}:`, e);
+      console.error(`Detail fetch failed for activity ${strava_id}:`, e);
     }
   }
 
-  console.log(`Splits backfilled for ${updated}/${missing.length} runs`);
-  return { updated, total: missing.length };
+  console.log(`Splits and laps backfilled for ${updated}/${ids.size} runs`);
+  return { updated, total: ids.size };
 }
 
 export async function syncActivities(opts: { full?: boolean } = {}) {
@@ -105,7 +115,7 @@ export async function syncActivities(opts: { full?: boolean } = {}) {
   }
 
   await backfillWeather();
-  await backfillSplits();
+  await backfillDetails();
 
   const total = getActivityCount();
   return { fetched, upserted, total };

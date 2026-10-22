@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -8,8 +8,11 @@ const root = process.env.TEST_APP_ROOT || join(import.meta.dir, "..");
 let dir: string;
 let base: string;
 let proc: Bun.Subprocess;
-let responsePath: string;
-const goodOutput = JSON.stringify({ analysis: { key_findings: ["Even effort"] }, narrative: "A steady run." });
+let postPath: string;
+let urlPath: string;
+let argsPath: string;
+// The skill sends a stale plan_id on purpose: the server owns the plan fields.
+const goodFeedback = JSON.stringify({ plan_id: "stale-plan", analysis_json: JSON.stringify({ key_findings: ["Even effort"] }), narrative: "A steady run." });
 
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), "training-server-test-"));
@@ -19,12 +22,21 @@ beforeAll(async () => {
   base = `http://127.0.0.1:${port}`;
   const bin = join(dir, ".local/bin");
   mkdirSync(bin, { recursive: true });
-  responsePath = join(dir, "response.json");
-  writeFileSync(responsePath, goodOutput);
-  writeFileSync(join(bin, "claude"), '#!/bin/sh\ncat "$FAKE_CLAUDE_RESPONSE_FILE"\n');
+  postPath = join(dir, "post.json");
+  urlPath = join(dir, "url.txt");
+  argsPath = join(dir, "args.txt");
+  writeFileSync(postPath, goodFeedback);
+  writeFileSync(urlPath, `${base}/api/activities/123/feedback`);
+  // Stands in for the skill: records its arguments and saves feedback the way the skill does.
+  writeFileSync(join(bin, "claude"), `#!/bin/sh
+printf '%s\\n' "$@" > "$FAKE_CLAUDE_ARGS_FILE"
+if [ -s "$FAKE_CLAUDE_POST_FILE" ]; then
+  curl -s -o /dev/null -X POST -H 'Content-Type: application/json' --data @"$FAKE_CLAUDE_POST_FILE" "$(cat "$FAKE_CLAUDE_URL_FILE")"
+fi
+`);
   chmodSync(join(bin, "claude"), 0o755);
-  const env = { ...process.env, HOME: dir, DATA_DIR: join(dir, "new/data"), PORT: String(port), HOST: "127.0.0.1", BASE_URL: "", PLAN_ID: "10k-oct-2026", FEEDBACK_ENABLED: "true", FEEDBACK_CLAUDE_ACCOUNT: "", STRAVA_CLIENT_ID: "", STRAVA_CLIENT_SECRET: "", STRAVA_ACCESS_TOKEN: "", STRAVA_REFRESH_TOKEN: "", FAKE_CLAUDE_RESPONSE_FILE: responsePath };
-  const seed = Bun.spawnSync([process.execPath, "-e", `import { upsertActivity } from './src/db'; for (const [id,day] of [[123,'06'],[124,'08']]) upsertActivity({id,name:'Test run',type:'Run',sport_type:'Run',distance:4828,moving_time:1800,start_date:'2026-07-'+day+'T12:00:00Z',start_date_local:'2026-07-'+day+'T07:00:00',average_speed:2.682});`], { cwd: root, env, stdout: "pipe", stderr: "pipe" });
+  const env = { ...process.env, HOME: dir, DATA_DIR: join(dir, "new/data"), PORT: String(port), HOST: "127.0.0.1", BASE_URL: "", PLAN_ID: "10k-oct-2026", FEEDBACK_ENABLED: "true", FEEDBACK_CLAUDE_ACCOUNT: "", STRAVA_CLIENT_ID: "", STRAVA_CLIENT_SECRET: "", STRAVA_ACCESS_TOKEN: "", STRAVA_REFRESH_TOKEN: "", FAKE_CLAUDE_POST_FILE: postPath, FAKE_CLAUDE_URL_FILE: urlPath, FAKE_CLAUDE_ARGS_FILE: argsPath };
+  const seed = Bun.spawnSync([process.execPath, "-e", `import { upsertActivity, insertLaps } from './src/db'; for (const [id,day] of [[123,'06'],[124,'08']]) upsertActivity({id,name:'Test run',type:'Run',sport_type:'Run',distance:4828,moving_time:1800,start_date:'2026-07-'+day+'T12:00:00Z',start_date_local:'2026-07-'+day+'T07:00:00',average_speed:2.682}); insertLaps(123, [{lap_index:1,distance:104,elapsed_time:20,moving_time:20,average_speed:5.2,max_speed:6.42,average_heartrate:133.6,max_heartrate:140,total_elevation_gain:0}]);`], { cwd: root, env, stdout: "pipe", stderr: "pipe" });
   if (seed.exitCode !== 0) throw new Error(new TextDecoder().decode(seed.stderr));
   proc = Bun.spawn([process.execPath, "src/server.ts"], { cwd: root, env, stdout: "pipe", stderr: "pipe" });
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -72,9 +84,20 @@ test("invalid plan IDs return JSON errors without reading outside plans", async 
   expect((await response.json() as any).error).toMatch(/plan ID/);
 });
 
-test("CLI output is validated and stored against the prescribed run", async () => {
+test("laps are served per activity", async () => {
+  const laps = await fetch(base + "/api/activities/123/laps").then(r => r.json()) as any;
+  expect(laps.laps).toHaveLength(1);
+  expect(laps.laps[0].max_speed).toBe(6.42);
+  expect((await fetch(base + "/api/activities/124/laps")).status).toBe(404);
+});
+
+test("feedback the skill saves is stored against the prescribed run", async () => {
   expect((await post("/api/activities/123/analyze", { note: "Felt easy" })).status).toBe(202);
   expect((await outcome()).status).toBe("done");
+  const args = readFileSync(argsPath, "utf8");
+  expect(args).toContain("/run-feedback 2026-07-06");
+  expect(args).toContain("Activity: 123");
+  expect(args).toContain("Felt easy");
   const feedback = await fetch(base + "/api/activities/123/feedback").then(r => r.json()) as any;
   expect(feedback.narrative).toBe("A steady run.");
   expect(feedback.plan_date).toBe("2026-07-06");
@@ -82,18 +105,28 @@ test("CLI output is validated and stored against the prescribed run", async () =
   expect(feedback.prescribed_miles).toBe(3);
 });
 
-test("re-analysis requires confirmation and invalid output preserves old feedback", async () => {
+test("a run that exits without saving feedback fails and keeps the old feedback", async () => {
   const confirmation = await post("/api/activities/123/analyze", {});
   expect(confirmation.status).toBe(409);
   expect((await confirmation.json() as any).requires_confirmation).toBe(true);
-  writeFileSync(responsePath, "not JSON");
+  writeFileSync(postPath, "");
   expect((await post("/api/activities/123/analyze", { force: true })).status).toBe(202);
-  expect((await outcome()).status).toBe("failed");
+  const request = await outcome();
+  expect(request.status).toBe("failed");
+  expect(request.error).toMatch(/without saving feedback/);
+  expect((await fetch(base + "/api/activities/123/feedback").then(r => r.json()) as any).narrative).toBe("A steady run.");
+});
+
+test("invalid feedback is rejected and keeps the old feedback", async () => {
+  const response = await post("/api/activities/123/feedback", { analysis_json: "not JSON", narrative: "Replaced" });
+  expect(response.status).toBe(400);
+  expect((await post("/api/activities/123/feedback", { analysis_json: "{}", narrative: " " })).status).toBe(400);
   expect((await fetch(base + "/api/activities/123/feedback").then(r => r.json()) as any).narrative).toBe("A steady run.");
 });
 
 test("analysis retains the dashboard prescription for a run completed early", async () => {
-  writeFileSync(responsePath, goodOutput);
+  writeFileSync(postPath, goodFeedback);
+  writeFileSync(urlPath, `${base}/api/activities/124/feedback`);
   expect((await post("/api/activities/124/analyze", {})).status).toBe(202);
   expect((await outcome(124)).status).toBe("done");
   const feedback = await fetch(base + "/api/activities/124/feedback").then(r => r.json()) as any;

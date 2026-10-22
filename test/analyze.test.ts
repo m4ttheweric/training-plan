@@ -1,13 +1,12 @@
 import { expect, test, describe } from "bun:test";
 import {
-  buildAnalyzeCommand, buildAnalyzePrompt, buildSpawnEnv, decideAnalyzeRequest,
-  resolveAccount, resolveModel, resolveEffort, normalizeNote, getAnalysisAvailability, parseAnalysisOutput,
+  buildAnalyzeCommand, buildAnalyzePrompt, buildSpawnEnv, decideAnalyzeRequest, localApiUrl,
+  resolveAccount, resolveModel, resolveEffort, resolveSkill, normalizeNote, getAnalysisAvailability, validateAnalysis,
 } from "../src/analyze";
 import { resumeState } from "../public/analyze.js";
 
-const OPTS = { date: "2026-08-03", note: null, context: { activity: { strava_id: 123 }, prescribed: { miles: 3 } } };
+const OPTS = { skill: "run-feedback", stravaId: 123, date: "2026-08-03", note: null, apiUrl: "http://127.0.0.1:8081", dbPath: "/srv/data/training.db" };
 
-// Removing tool disabling would let model output mutate local data directly.
 describe("portable optional analysis", () => {
   test("uses the authenticated Claude CLI without account switching by default", () => {
     expect(buildAnalyzeCommand(OPTS)[0]).toBe("claude");
@@ -24,10 +23,12 @@ describe("portable optional analysis", () => {
   test("accepts accounts without author-specific employer restrictions", () => {
     expect(resolveAccount({ FEEDBACK_CLAUDE_ACCOUNT: "runner@company.example" })).toBe("runner@company.example");
   });
-  test("disables tools and avoids bypassing permissions", () => {
+  // Safe mode would hide the feedback skill, so the allowlist is the boundary.
+  test("allows only curl and sqlite3 and avoids bypassing permissions", () => {
     const cmd = buildAnalyzeCommand(OPTS);
-    expect(cmd[cmd.indexOf("--tools") + 1]).toBe("");
-    expect(cmd).toContain("--safe-mode");
+    expect(cmd[cmd.indexOf("--allowedTools") + 1]).toBe("Bash(curl:*),Bash(sqlite3:*)");
+    expect(cmd[cmd.indexOf("--disallowedTools") + 1]).toBe("mcp__*");
+    expect(cmd).not.toContain("--safe-mode");
     expect(cmd).not.toContain("--dangerously-skip-permissions");
   });
   test("is disabled until explicitly enabled", () => {
@@ -48,13 +49,15 @@ describe("portable optional analysis", () => {
 });
 
 describe("analysis prompt and result", () => {
-  test("includes actual context and requests a structured response", () => {
+  test("invokes the configured skill for the run's date", () => {
+    expect(buildAnalyzePrompt(OPTS).startsWith("/run-feedback 2026-08-03\n")).toBe(true);
+    expect(buildAnalyzePrompt({ ...OPTS, skill: "matt:run-feedback" }).startsWith("/matt:run-feedback 2026-08-03\n")).toBe(true);
+  });
+  test("names the activity, the local API and the database", () => {
     const prompt = buildAnalyzePrompt(OPTS);
-    expect(prompt).toContain('"strava_id":123');
-    expect(prompt).toContain('"miles":3');
-    expect(prompt).toContain("2026-08-03");
-    expect(prompt).toContain("narrative");
-    expect(prompt).not.toContain("/matt:");
+    expect(prompt).toContain("Activity: 123");
+    expect(prompt).toContain("API: http://127.0.0.1:8081");
+    expect(prompt).toContain("Database: /srv/data/training.db");
   });
   test("includes an athlete note as data", () => {
     expect(buildAnalyzePrompt({ ...OPTS, note: "scaled back" })).toContain("scaled back");
@@ -96,16 +99,30 @@ describe("analysis prompt and result", () => {
     expect(status.available).toBe(false);
     expect(status.message).toMatch(/FEEDBACK_CLAUDE_MODEL/);
   });
-  test("parses structured analysis and narrative", () => {
-    expect(parseAnalysisOutput('{"analysis":{"key_findings":["Even splits"]},"narrative":"Steady run."}'))
-      .toEqual({ analysis: { key_findings: ["Even splits"] }, narrative: "Steady run." });
+  test("defaults the skill to the bundled run-feedback skill", () => {
+    expect(resolveSkill({})).toBe("run-feedback");
+    expect(resolveSkill({ FEEDBACK_SKILL: " " })).toBe("run-feedback");
   });
-  test("accepts a fenced JSON response", () => {
-    expect(parseAnalysisOutput('```json\n{"analysis":{},"narrative":"Steady run."}\n```').narrative).toBe("Steady run.");
+  test("accepts a plugin-qualified skill override", () => {
+    expect(resolveSkill({ FEEDBACK_SKILL: "matt:run-feedback" })).toBe("matt:run-feedback");
   });
+  test.each(["-p", "/run-feedback", "run feedback", "x\ny"])("rejects invalid skill %j", skill => {
+    expect(() => resolveSkill({ FEEDBACK_SKILL: skill })).toThrow(/FEEDBACK_SKILL/);
+  });
+  test("reports a rejected skill as unavailable", () => {
+    const status = getAnalysisAvailability({ FEEDBACK_ENABLED: "true", FEEDBACK_SKILL: "-p" }, () => "/bin/claude");
+    expect(status.available).toBe(false);
+    expect(status.message).toMatch(/FEEDBACK_SKILL/);
+  });
+});
+
+describe("feedback validation", () => {
   test("accepts supported numeric metrics and findings", () => {
     const analysis = { baseline: { avg_hr: 140 }, deltas: { hr_vs_baseline: -1, pace_vs_baseline_s_per_mi: 0, feels_temp_vs_baseline_f: 5 }, cadence_spm: 170, key_findings: ["Even effort"] };
-    expect(parseAnalysisOutput(JSON.stringify({ analysis, narrative: "Steady." })).analysis).toEqual(analysis);
+    expect(validateAnalysis(JSON.stringify(analysis))).toEqual(analysis);
+  });
+  test("accepts fields it does not know about", () => {
+    expect(validateAnalysis('{"strides":{"top_speed_mps":6.42}}')).toEqual({ strides: { top_speed_mps: 6.42 } });
   });
   test.each([
     { deltas: { hr_vs_baseline: null } },
@@ -114,11 +131,18 @@ describe("analysis prompt and result", () => {
     { deltas: null }, { deltas: { pace_vs_baseline_s_per_mi: "12" } },
     { key_findings: [42] }, { key_findings: "Good" },
   ])("rejects malformed optional metrics %j", analysis => {
-    expect(() => parseAnalysisOutput(JSON.stringify({ analysis, narrative: "Steady." }))).toThrow();
+    expect(() => validateAnalysis(JSON.stringify(analysis))).toThrow();
   });
-  test.each(['garbage', '{}', '{"analysis":[],"narrative":"Run"}', '{"analysis":{},"narrative":""}'])("rejects unusable analysis %s", output => {
-    expect(() => parseAnalysisOutput(output)).toThrow();
+  test.each(["garbage", "[]", "null", "42"])("rejects analysis_json that is not an object: %s", text => {
+    expect(() => validateAnalysis(text)).toThrow();
   });
+});
+
+describe("local API address", () => {
+  test.each([["127.0.0.1", "http://127.0.0.1:8081"], ["0.0.0.0", "http://127.0.0.1:8081"], ["::", "http://127.0.0.1:8081"], ["localhost", "http://localhost:8081"], ["192.168.1.5", "http://192.168.1.5:8081"], ["::1", "http://[::1]:8081"]])(
+    "reaches a server bound to %s at %s", (host, url) => {
+      expect(localApiUrl(host, 8081)).toBe(url);
+    });
 });
 
 describe("resumeState", () => {

@@ -1,14 +1,14 @@
 import { join, extname } from "path";
 import { getAuthUrl, exchangeCode, isStravaConfigured } from "./strava/client";
 import { syncActivities } from "./strava/sync";
-import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, getTokens, getSplitsForActivity, getFeedbackForActivity, upsertFeedback, createFeedbackRequest, finishFeedbackRequest, getLatestFeedbackRequest, getActivityByStravaId, upsertDailyMetrics, getDailyMetricsWide, getDailyMetricsSummary } from "./db";
+import { getActivities, getWeeklyStats, getActivityCount, getLastSyncedDate, getTokens, getSplitsForActivity, getLapsForActivity, getFeedbackForActivity, upsertFeedback, createFeedbackRequest, finishFeedbackRequest, getLatestFeedbackRequest, getActivityByStravaId, upsertDailyMetrics, getDailyMetricsWide, getDailyMetricsSummary, DB_PATH } from "./db";
 import { parseHealthExport } from "./health";
 import { getPlanStatus, getAvailablePlans } from "./plan";
 import { getRecovery } from "./recovery";
 import { getToday } from "./today";
 import { getJournal } from "./journal";
 import { localDate } from "../public/lib.js";
-import { ANALYZE_TIMEOUT_MS, buildAnalyzeCommand, buildSpawnEnv, decideAnalyzeRequest, normalizeNote, resolveAccount, resolveModel, resolveEffort, getAnalysisAvailability, parseAnalysisOutput } from "./analyze";
+import { ANALYZE_TIMEOUT_MS, buildAnalyzeCommand, buildSpawnEnv, decideAnalyzeRequest, normalizeNote, resolveAccount, resolveModel, resolveEffort, resolveSkill, localApiUrl, getAnalysisAvailability, validateAnalysis } from "./analyze";
 
 import { getServerConfig } from "./config";
 const { port: PORT, hostname: HOST } = getServerConfig(process.env);
@@ -52,6 +52,11 @@ let syncing = false;
    holds a Claude session open for up to ANALYZE_TIMEOUT_MS, so overlapping
    runs would contend for the same account's rate limit for no benefit. */
 let analyzing = false;
+
+/* The skill saves through POST /feedback, so that route records the save
+   here and the exit handler can tell a finished analysis from one that quit
+   without writing anything. */
+let analysisSaves: { stravaId: number; saved: boolean } | null = null;
 
 // The timestamp a sync last finished (success or failure), independent of
 // getLastSyncedDate()'s MAX(start_date_local) -- that reads the newest
@@ -107,38 +112,33 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
   ]);
 }
 
-/* Spawns the pinned headless Claude session and returns immediately. The
-   caller polls GET /api/activities/:id/analyze for the outcome.
-
-   Success requires valid output and a persisted feedback row. A CLI failure,
-   invalid response, or database write failure remains visible to the user. */
-function startAnalysis(
-  stravaId: number, date: string, note: string | null, account: string | undefined, model: string, effort: string | undefined,
-): number {
-  // Use the dashboard's matching horizon, including sessions completed early.
-  // Historical metrics below still end at the activity's own date.
+/* The plan fields stored with feedback. They come from the dashboard's
+   matching, including sessions completed early, never from the caller. */
+function planFieldsFor(stravaId: number, date: string) {
   const today = localDate();
   const status = getPlanStatus(undefined, date > today ? date : today);
   const slot = status.weeks.flatMap(week => week.days).find(day => day.actual?.strava_id === stravaId);
-  const metrics = (activity: Record<string, unknown>) => Object.fromEntries([
-    "strava_id", "name", "type", "distance", "moving_time", "start_date_local", "average_speed",
-    "average_heartrate", "max_heartrate", "average_cadence", "total_elevation_gain",
-    "weather_temp", "weather_feels", "weather_humidity", "weather_wind",
-  ].map(key => [key, activity[key] ?? null]));
-  const context = {
-    activity: metrics(getActivityByStravaId(stravaId)!),
-    splits: getSplitsForActivity(stravaId),
-    prescribed: slot?.plan ?? null,
-    plan: { id: status.plan.id, race: status.plan.race, phases: status.plan.phases, glossary: status.plan.glossary, rules: status.plan.rules },
-    recentRuns: getActivities({ type: "Run", before: date + "T23:59:59", limit: 20 }).map(activity => metrics(activity as Record<string, unknown>)),
-    dailyHealth: getDailyMetricsWide({ after: date, before: date }),
+  return {
+    plan_date: slot?.date ?? date, plan_id: status.plan.id,
+    prescribed_type: slot?.plan.type ?? "unplanned", prescribed_miles: slot?.plan.miles ?? null,
   };
+}
+
+interface AnalysisConfig { account?: string; model: string; effort?: string; skill: string }
+
+/* Spawns the pinned headless Claude session and returns immediately. The
+   caller polls GET /api/activities/:id/analyze for the outcome.
+
+   Success requires a clean exit and feedback the skill saved during this run.
+   A CLI failure, or a run that never saved, remains visible to the user. */
+function startAnalysis(stravaId: number, date: string, note: string | null, config: AnalysisConfig): number {
   const requestId = createFeedbackRequest(stravaId, note);
   analyzing = true;
+  analysisSaves = { stravaId, saved: false };
 
   let proc: Bun.Subprocess<"ignore", "pipe", "pipe">;
   try {
-    proc = Bun.spawn(buildAnalyzeCommand({ account, model, effort, date, note, context }), {
+    proc = Bun.spawn(buildAnalyzeCommand({ ...config, stravaId, date, note, apiUrl: localApiUrl(HOST, PORT), dbPath: DB_PATH }), {
       cwd: join(import.meta.dir, ".."),
       env: buildSpawnEnv(process.env),
       stdout: "pipe",
@@ -152,6 +152,7 @@ function startAnalysis(
       console.error("Failed to record spawn failure for request", requestId, dbErr);
     } finally {
       analyzing = false;
+      analysisSaves = null;
     }
     return requestId;
   }
@@ -183,6 +184,7 @@ function startAnalysis(
       console.error("Failed to record analysis outcome for request", requestId, e);
     } finally {
       analyzing = false;
+      analysisSaves = null;
     }
   };
 
@@ -211,13 +213,7 @@ function startAnalysis(
         withTimeout(errTail, STREAM_GRACE_MS, ""),
       ]);
 
-      if (exitCode === 0 && !timedOut) {
-        const feedback = parseAnalysisOutput(out);
-        upsertFeedback(stravaId, {
-          plan_date: slot?.date ?? date, plan_id: status.plan.id,
-          prescribed_type: slot?.plan.type ?? "unplanned", prescribed_miles: slot?.plan.miles ?? null,
-          analysis_json: JSON.stringify(feedback.analysis), narrative: feedback.narrative,
-        });
+      if (exitCode === 0 && !timedOut && analysisSaves?.saved) {
         settle("done", null, 0);
         return;
       }
@@ -227,7 +223,7 @@ function startAnalysis(
       const detail = (err.trim() || out.trim() || "").slice(-OUTPUT_TAIL_CHARS);
       const prefix = timedOut
         ? `Analysis timed out after ${Math.round(ANALYZE_TIMEOUT_MS / 60000)} minutes. `
-        : "";
+        : exitCode === 0 ? "Analysis finished without saving feedback. " : "";
       settle("failed", (prefix + detail).trim() || `Analysis exited with code ${exitCode}`, exitCode);
     } catch (e) {
       settle("failed", String(e), null);
@@ -329,6 +325,13 @@ const server = Bun.serve({
       return json({ splits });
     }
 
+    const lapsMatch = path.match(/^\/api\/activities\/(\d+)\/laps$/);
+    if (lapsMatch && req.method === "GET") {
+      const laps = getLapsForActivity(Number(lapsMatch[1]));
+      if (!laps.length) return json({ error: "No laps found" }, 404);
+      return json({ laps });
+    }
+
     const feedbackMatch = path.match(/^\/api\/activities\/(\d+)\/feedback$/);
     if (feedbackMatch) {
       const stravaId = Number(feedbackMatch[1]);
@@ -338,13 +341,20 @@ const server = Bun.serve({
         return json(feedback);
       }
       if (req.method === "POST") {
+        const activity = getActivityByStravaId(stravaId);
+        if (!activity) return json({ error: "Activity not found" }, 404);
+        let body: { analysis_json?: unknown; narrative?: unknown };
         try {
-          const body = await req.json() as {
-            plan_date: string; plan_id: string;
-            prescribed_type: string; prescribed_miles: number | null;
-            analysis_json: string; narrative: string;
-          };
-          upsertFeedback(stravaId, body);
+          body = await req.json() as typeof body;
+          validateAnalysis(body.analysis_json);
+          if (typeof body.narrative !== "string" || !body.narrative.trim()) throw new Error("narrative must be a nonempty string");
+        } catch (e) {
+          return json({ error: e instanceof Error ? e.message : String(e) }, 400);
+        }
+        try {
+          const date = String(activity.start_date_local ?? "").slice(0, 10);
+          upsertFeedback(stravaId, { ...planFieldsFor(stravaId, date), analysis_json: String(body.analysis_json), narrative: body.narrative.trim() });
+          if (analysisSaves?.stravaId === stravaId) analysisSaves.saved = true;
           return json({ ok: true });
         } catch (e) {
           return json({ error: String(e) }, 500);
@@ -378,13 +388,12 @@ const server = Bun.serve({
 
         const availability = getAnalysisAvailability(process.env);
         if (!availability.available) return json({ error: availability.message }, 503);
-        let account: string | undefined;
-        let model: string;
-        let effort: string | undefined;
+        let config: AnalysisConfig;
         try {
-          account = resolveAccount(process.env);
-          model = resolveModel(process.env);
-          effort = resolveEffort(process.env);
+          config = {
+            account: resolveAccount(process.env), model: resolveModel(process.env),
+            effort: resolveEffort(process.env), skill: resolveSkill(process.env),
+          };
         } catch (e) {
           return json({ error: e instanceof Error ? e.message : String(e) }, 500);
         }
@@ -398,7 +407,7 @@ const server = Bun.serve({
         if (!date) return json({ error: "Activity has no date" }, 500);
 
         try {
-          const requestId = startAnalysis(stravaId, date, normalizeNote(body.note), account, model, effort);
+          const requestId = startAnalysis(stravaId, date, normalizeNote(body.note), config);
           return json({ started: true, request_id: requestId }, 202);
         } catch (error) {
           return json({ error: error instanceof Error ? error.message : String(error) }, 500);

@@ -11,7 +11,7 @@ type Bindings = Record<string, string | bigint | NodeJS.TypedArray | number | bo
 
 const DATA_DIR = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : join(import.meta.dir, "../data");
 mkdirSync(DATA_DIR, { recursive: true });
-const DB_PATH = join(DATA_DIR, "training.db");
+export const DB_PATH = join(DATA_DIR, "training.db");
 const db = new Database(DB_PATH, { create: true });
 
 db.exec("PRAGMA journal_mode = WAL");
@@ -83,6 +83,20 @@ db.exec(`
     UNIQUE(activity_strava_id, split_index)
   );
   CREATE INDEX IF NOT EXISTS idx_splits_activity ON activity_splits(activity_strava_id);
+
+  CREATE TABLE IF NOT EXISTS activity_laps (
+    activity_strava_id INTEGER NOT NULL,
+    lap_index INTEGER NOT NULL,
+    distance REAL NOT NULL,
+    elapsed_time INTEGER NOT NULL,
+    moving_time INTEGER NOT NULL,
+    average_speed REAL,
+    max_speed REAL,
+    average_heartrate REAL,
+    max_heartrate REAL,
+    total_elevation_gain REAL,
+    PRIMARY KEY (activity_strava_id, lap_index)
+  );
 
   CREATE TABLE IF NOT EXISTS run_feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -332,6 +346,51 @@ export function getSplitsForActivity(stravaId: number): SplitRow[] {
     SELECT split_index, distance, elapsed_time, moving_time, elevation_diff, average_speed, average_heartrate, pace_zone
     FROM activity_splits WHERE activity_strava_id = ? ORDER BY split_index
   `).all(stravaId) as SplitRow[];
+}
+
+export interface LapRow {
+  lap_index: number;
+  distance: number;
+  elapsed_time: number;
+  moving_time: number;
+  average_speed: number | null;
+  max_speed: number | null;
+  average_heartrate: number | null;
+  max_heartrate: number | null;
+  total_elevation_gain: number | null;
+}
+
+export function insertLaps(stravaId: number, laps: LapRow[]): void {
+  const stmt = db.query(`
+    INSERT OR REPLACE INTO activity_laps
+      (activity_strava_id, lap_index, distance, elapsed_time, moving_time, average_speed, max_speed, average_heartrate, max_heartrate, total_elevation_gain)
+    VALUES ($id, $idx, $dist, $elapsed, $moving, $speed, $max_speed, $hr, $max_hr, $elev)
+  `);
+  for (const l of laps) {
+    stmt.run({
+      $id: stravaId, $idx: l.lap_index, $dist: l.distance, $elapsed: l.elapsed_time, $moving: l.moving_time,
+      $speed: l.average_speed ?? null, $max_speed: l.max_speed ?? null,
+      $hr: l.average_heartrate ?? null, $max_hr: l.max_heartrate ?? null, $elev: l.total_elevation_gain ?? null,
+    });
+  }
+}
+
+export function getLapsForActivity(stravaId: number): LapRow[] {
+  return db.query(`
+    SELECT lap_index, distance, elapsed_time, moving_time, average_speed, max_speed, average_heartrate, max_heartrate, total_elevation_gain
+    FROM activity_laps WHERE activity_strava_id = ? ORDER BY lap_index
+  `).all(stravaId) as LapRow[];
+}
+
+/* Bounded to recent runs: each one costs a Strava detail request, and the
+   read limit is 100 per 15 minutes. */
+export function getRecentRunsMissingLaps(after: string, limit: number): Array<{ strava_id: number }> {
+  return db.query(`
+    SELECT a.strava_id FROM activities a
+    WHERE a.type = 'Run' AND a.distance > 0 AND a.start_date_local >= ?
+      AND NOT EXISTS (SELECT 1 FROM activity_laps l WHERE l.activity_strava_id = a.strava_id)
+    ORDER BY a.start_date_local DESC LIMIT ?
+  `).all(after, limit) as Array<{ strava_id: number }>;
 }
 
 export function getRunsMissingSplits(): Array<{ strava_id: number }> {
