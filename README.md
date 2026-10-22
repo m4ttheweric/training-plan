@@ -90,7 +90,7 @@ Install and authenticate [Claude Code](https://code.claude.com/docs/en/overview)
 FEEDBACK_ENABLED=true
 ```
 
-Restart, open a run in Journal, and choose **Analyze this run**. The app sends the selected run, splits, plan, recent runs, and available daily health metrics to your configured Claude account. It requests an Opus analysis with tools and startup customizations disabled, validates the response, and stores the narrative locally. No external analysis skill is needed. Usage follows your Claude subscription or API account.
+Restart, open a run in Journal, and choose **Analyze this run**. The app sends the selected run, splits, plan, recent runs, and available daily health metrics to your configured Claude account. It requests an Opus analysis by default (see `FEEDBACK_CLAUDE_MODEL`), with tools and startup customizations disabled, validates the response, and stores the narrative locally. No external analysis skill is needed. Usage follows your Claude subscription or API account.
 
 By default it uses Claude's current authenticated account. If you already use `cswap`, set `FEEDBACK_CLAUDE_ACCOUNT` to the email of the account you want; then both `claude` and `cswap` must be on PATH. The [Claude CLI reference](https://code.claude.com/docs/en/cli-reference) describes the command options.
 
@@ -119,6 +119,8 @@ Use the format `{ "data": { "metrics": [...] } }`; the parser supports daily qua
 | `DATA_DIR` | Repository `data/` | Database directory; created on startup |
 | `FEEDBACK_ENABLED` | `false` | Enable optional Claude run analysis |
 | `FEEDBACK_CLAUDE_ACCOUNT` | Claude's current account | Optional explicit `cswap` account email |
+| `FEEDBACK_CLAUDE_MODEL` | `opus` | Model alias or ID passed to `claude --model`, such as `sonnet` |
+| `FEEDBACK_CLAUDE_EFFORT` | CLI default | Optional `claude --effort` level: `low`, `medium`, `high`, `xhigh`, or `max` |
 
 This app has no application login and is intended for local, single-user use. Keep the loopback default for ordinary use. `portless.json` and `mattstack.deck.json` are optional local development integrations; neither is required to run the app.
 

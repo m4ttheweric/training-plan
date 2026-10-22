@@ -1,7 +1,7 @@
 import { expect, test, describe } from "bun:test";
 import {
   buildAnalyzeCommand, buildAnalyzePrompt, buildSpawnEnv, decideAnalyzeRequest,
-  resolveAccount, normalizeNote, getAnalysisAvailability, parseAnalysisOutput,
+  resolveAccount, resolveModel, resolveEffort, normalizeNote, getAnalysisAvailability, parseAnalysisOutput,
 } from "../src/analyze";
 import { resumeState } from "../public/analyze.js";
 
@@ -63,6 +63,38 @@ describe("analysis prompt and result", () => {
     const cmd = buildAnalyzeCommand(OPTS);
     expect(cmd[cmd.indexOf("--model") + 1]).toBe("opus");
     expect(cmd).not.toContain("--fallback-model");
+  });
+  test("uses the configured model when one is passed", () => {
+    const cmd = buildAnalyzeCommand({ ...OPTS, model: "sonnet" });
+    expect(cmd[cmd.indexOf("--model") + 1]).toBe("sonnet");
+  });
+  test("defaults the model to opus when FEEDBACK_CLAUDE_MODEL is unset or blank", () => {
+    expect(resolveModel({})).toBe("opus");
+    expect(resolveModel({ FEEDBACK_CLAUDE_MODEL: "  " })).toBe("opus");
+  });
+  test("accepts a model alias or full model ID", () => {
+    expect(resolveModel({ FEEDBACK_CLAUDE_MODEL: "sonnet" })).toBe("sonnet");
+    expect(resolveModel({ FEEDBACK_CLAUDE_MODEL: "claude-opus-4-6[1m]" })).toBe("claude-opus-4-6[1m]");
+  });
+  test("omits --effort unless one is configured", () => {
+    expect(buildAnalyzeCommand(OPTS)).not.toContain("--effort");
+    expect(resolveEffort({ FEEDBACK_CLAUDE_EFFORT: " " })).toBeUndefined();
+  });
+  test("passes a configured effort level to the CLI", () => {
+    const cmd = buildAnalyzeCommand({ ...OPTS, model: "claude-opus-5-5", effort: "low" });
+    expect(cmd[cmd.indexOf("--effort") + 1]).toBe("low");
+    expect(cmd[cmd.indexOf("--model") + 1]).toBe("claude-opus-5-5");
+  });
+  test.each(["LOW", "extreme", "low --tools x"])("rejects invalid effort %s", effort => {
+    expect(() => resolveEffort({ FEEDBACK_CLAUDE_EFFORT: effort })).toThrow(/FEEDBACK_CLAUDE_EFFORT/);
+  });
+  test.each(["-p", "sonnet --tools x", "son net"])("rejects invalid model %s", model => {
+    expect(() => resolveModel({ FEEDBACK_CLAUDE_MODEL: model })).toThrow(/model/);
+  });
+  test("reports a rejected model as unavailable", () => {
+    const status = getAnalysisAvailability({ FEEDBACK_ENABLED: "true", FEEDBACK_CLAUDE_MODEL: "-p" }, () => "/bin/claude");
+    expect(status.available).toBe(false);
+    expect(status.message).toMatch(/FEEDBACK_CLAUDE_MODEL/);
   });
   test("parses structured analysis and narrative", () => {
     expect(parseAnalysisOutput('{"analysis":{"key_findings":["Even splits"]},"narrative":"Steady run."}'))

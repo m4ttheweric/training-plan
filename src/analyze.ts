@@ -1,6 +1,9 @@
 /* Optional Claude CLI analysis. Context is supplied by the server and tools
  * are disabled; the server validates and stores the returned feedback. */
 export const ACCOUNT_PATTERN = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
+export const MODEL_PATTERN = /^[a-z0-9][a-z0-9._[\]-]*$/i;
+export const DEFAULT_MODEL = "opus";
+export const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"];
 export const ANALYZE_TIMEOUT_MS = 5 * 60 * 1000;
 export const MAX_NOTE_LENGTH = 2000;
 
@@ -15,6 +18,23 @@ export function resolveAccount(env: Record<string, string | undefined>): string 
   return account ? assertAccount(account) : undefined;
 }
 
+/* Accepts an alias (`opus`) or a full ID (`claude-opus-4-6[1m]`). The pattern
+   also keeps a leading dash from reading as a CLI flag. */
+export function resolveModel(env: Record<string, string | undefined>): string {
+  const model = env.FEEDBACK_CLAUDE_MODEL?.trim();
+  if (!model) return DEFAULT_MODEL;
+  if (!MODEL_PATTERN.test(model)) throw new Error("FEEDBACK_CLAUDE_MODEL must be a model alias or ID");
+  return model;
+}
+
+/* Unset means the CLI's own default effort, so the flag is omitted. */
+export function resolveEffort(env: Record<string, string | undefined>): string | undefined {
+  const effort = env.FEEDBACK_CLAUDE_EFFORT?.trim();
+  if (!effort) return undefined;
+  if (!EFFORT_LEVELS.includes(effort)) throw new Error(`FEEDBACK_CLAUDE_EFFORT must be one of ${EFFORT_LEVELS.join(", ")}`);
+  return effort;
+}
+
 export function getAnalysisAvailability(
   env: Record<string, string | undefined>,
   which: (name: string) => string | null = name => Bun.which(name, { PATH: buildSpawnEnv(env).PATH }),
@@ -22,6 +42,8 @@ export function getAnalysisAvailability(
   if (env.FEEDBACK_ENABLED !== "true") return { enabled: false, available: false, message: "Run analysis is disabled." };
   try {
     const account = resolveAccount(env);
+    resolveModel(env);
+    resolveEffort(env);
     if (!which("claude")) return { enabled: true, available: false, message: "Claude Code is not installed or is missing from PATH." };
     if (account && !which("cswap")) return { enabled: true, available: false, message: "The configured account requires cswap on PATH." };
     return { enabled: true, available: true, message: null };
@@ -38,6 +60,8 @@ export function normalizeNote(note: unknown): string | null {
 
 interface AnalysisOptions {
   account?: string;
+  model?: string;
+  effort?: string;
   date: string;
   note: string | null;
   context: unknown;
@@ -55,7 +79,8 @@ ${JSON.stringify({ ...opts.context as Record<string, unknown>, athleteNote: norm
 
 export function buildAnalyzeCommand(opts: AnalysisOptions): string[] {
   const prefix = opts.account ? ["cswap", "run", assertAccount(opts.account), "--"] : ["claude"];
-  return [...prefix, "--safe-mode", "--model", "opus", "--tools", "", "--disallowedTools", "mcp__*", "--output-format", "text", "-p", buildAnalyzePrompt(opts)];
+  const effort = opts.effort ? ["--effort", opts.effort] : [];
+  return [...prefix, "--safe-mode", "--model", opts.model ?? DEFAULT_MODEL, ...effort, "--tools", "", "--disallowedTools", "mcp__*", "--output-format", "text", "-p", buildAnalyzePrompt(opts)];
 }
 
 export function parseAnalysisOutput(output: string): { analysis: Record<string, unknown>; narrative: string } {

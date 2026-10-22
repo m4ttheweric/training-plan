@@ -8,7 +8,7 @@ import { getRecovery } from "./recovery";
 import { getToday } from "./today";
 import { getJournal } from "./journal";
 import { localDate } from "../public/lib.js";
-import { ANALYZE_TIMEOUT_MS, buildAnalyzeCommand, buildSpawnEnv, decideAnalyzeRequest, normalizeNote, resolveAccount, getAnalysisAvailability, parseAnalysisOutput } from "./analyze";
+import { ANALYZE_TIMEOUT_MS, buildAnalyzeCommand, buildSpawnEnv, decideAnalyzeRequest, normalizeNote, resolveAccount, resolveModel, resolveEffort, getAnalysisAvailability, parseAnalysisOutput } from "./analyze";
 
 import { getServerConfig } from "./config";
 const { port: PORT, hostname: HOST } = getServerConfig(process.env);
@@ -113,7 +113,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
    Success requires valid output and a persisted feedback row. A CLI failure,
    invalid response, or database write failure remains visible to the user. */
 function startAnalysis(
-  stravaId: number, date: string, note: string | null, account?: string,
+  stravaId: number, date: string, note: string | null, account: string | undefined, model: string, effort: string | undefined,
 ): number {
   // Use the dashboard's matching horizon, including sessions completed early.
   // Historical metrics below still end at the activity's own date.
@@ -138,7 +138,7 @@ function startAnalysis(
 
   let proc: Bun.Subprocess<"ignore", "pipe", "pipe">;
   try {
-    proc = Bun.spawn(buildAnalyzeCommand({ account, date, note, context }), {
+    proc = Bun.spawn(buildAnalyzeCommand({ account, model, effort, date, note, context }), {
       cwd: join(import.meta.dir, ".."),
       env: buildSpawnEnv(process.env),
       stdout: "pipe",
@@ -379,8 +379,12 @@ const server = Bun.serve({
         const availability = getAnalysisAvailability(process.env);
         if (!availability.available) return json({ error: availability.message }, 503);
         let account: string | undefined;
+        let model: string;
+        let effort: string | undefined;
         try {
           account = resolveAccount(process.env);
+          model = resolveModel(process.env);
+          effort = resolveEffort(process.env);
         } catch (e) {
           return json({ error: e instanceof Error ? e.message : String(e) }, 500);
         }
@@ -394,7 +398,7 @@ const server = Bun.serve({
         if (!date) return json({ error: "Activity has no date" }, 500);
 
         try {
-          const requestId = startAnalysis(stravaId, date, normalizeNote(body.note), account);
+          const requestId = startAnalysis(stravaId, date, normalizeNote(body.note), account, model, effort);
           return json({ started: true, request_id: requestId }, 202);
         } catch (error) {
           return json({ error: error instanceof Error ? error.message : String(error) }, 500);
