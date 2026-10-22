@@ -40,9 +40,17 @@ async function serveStatic(pathname: string): Promise<Response> {
   const file = Bun.file(filePath);
   if (!(await file.exists())) return new Response("Not Found", { status: 404 });
 
-  /* no-cache: Safari otherwise reuses a stale app.css under freshly fetched
-     HTML, so markup and styles drift apart after a deploy. */
+  /* The public domain sits behind Cloudflare, which overrides no-cache with a
+     4-hour browser TTL. Versioning the stylesheet URL by mtime is what
+     actually keeps HTML and app.css in step after a change. */
   const ext = extname(filePath).toLowerCase();
+  if (ext === ".html") {
+    const cssMtime = Bun.file(join(PUBLIC_DIR, "app.css")).lastModified;
+    const html = (await file.text()).replace('href="/app.css"', `href="/app.css?v=${cssMtime}"`);
+    return new Response(html, {
+      headers: { "Content-Type": MIME[ext], "Cache-Control": "no-cache" },
+    });
+  }
   return new Response(file, {
     headers: {
       "Content-Type": MIME[ext] || "application/octet-stream",

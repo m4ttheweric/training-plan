@@ -11,6 +11,8 @@
   --accent:   #e8542a;
   --accent-d: #c0431c;
   --accent-halo: rgba(232,84,42,.14);
+  /* darkening band on the accent block; the block is identical in dark, so no override */
+  --accent-shade: rgba(0,0,0,.22);
 
   --run-bg:   #eaf0f7;  --run-fg:  #1e5c94;
   --long-bg:  #fdeee8;  --long-fg: #c0431c;
@@ -363,7 +365,7 @@ body {
 .block .anote { color: rgba(255,255,255,.9); }
 .block .aerr {
   flex-basis: 100%; margin-top: 0; padding: 7px 11px; border-radius: 8px;
-  background: rgba(0,0,0,.22); color: #fff;
+  background: var(--accent-shade); color: #fff;
 }
 .apending {
   display: inline-flex; align-items: center; gap: 8px;
