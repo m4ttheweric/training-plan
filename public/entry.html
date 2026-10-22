@@ -94,8 +94,8 @@ function analyzeIdle() {
    Analyze button that will be rejected. */
 function analyzeRunning() {
   document.getElementById("arow").innerHTML =
-    '<button class="chip light chipbtn" disabled>Analyzing...</button>' +
-    '<span class="anote">This takes a minute or two. You can leave the page.</span>';
+    '<div class="apending" role="status"><i class="spin" aria-hidden="true"></i>Analyzing this run</div>' +
+    '<span class="anote">Takes a minute or two. Safe to leave this page.</span>';
 }
 
 /* The note field shows on a first analysis too, not just re-runs: it is one
