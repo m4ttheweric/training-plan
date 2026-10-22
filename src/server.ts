@@ -40,9 +40,14 @@ async function serveStatic(pathname: string): Promise<Response> {
   const file = Bun.file(filePath);
   if (!(await file.exists())) return new Response("Not Found", { status: 404 });
 
+  /* no-cache: Safari otherwise reuses a stale app.css under freshly fetched
+     HTML, so markup and styles drift apart after a deploy. */
   const ext = extname(filePath).toLowerCase();
   return new Response(file, {
-    headers: { "Content-Type": MIME[ext] || "application/octet-stream" },
+    headers: {
+      "Content-Type": MIME[ext] || "application/octet-stream",
+      "Cache-Control": "no-cache",
+    },
   });
 }
 
