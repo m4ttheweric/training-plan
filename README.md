@@ -80,21 +80,23 @@ The default callback is `http://localhost:8081/auth/strava/callback`. Changing `
 
 The browser flow stores and refreshes tokens locally. Existing access/refresh tokens are optional alternatives; they are not required for setup.
 
-Sync imports activity history, mile splits, and historical weather. It runs in the background; automatic syncs are throttled. Completion matching accepts workouts moved by one day. There is no manual workout-completion button; completed workouts come from Strava. Sync errors appear in Journal.
+Sync imports activity history, mile splits, laps for recent runs, and historical weather. It runs in the background; automatic syncs are throttled. Completion matching accepts workouts moved by one day. There is no manual workout-completion button; completed workouts come from Strava. Sync errors appear in Journal.
 
 ## Run analysis (optional)
 
-Install and authenticate [Claude Code](https://code.claude.com/docs/en/overview) with `--safe-mode` support (tested with 2.1.289), confirm `claude` is on PATH, and set:
+Install and authenticate [Claude Code](https://code.claude.com/docs/en/overview) (tested with 2.1.308), confirm `claude` is on PATH, and set:
 
 ```dotenv
 FEEDBACK_ENABLED=true
 ```
 
-Restart, open a run in Journal, and choose **Analyze this run**. The app sends the selected run, splits, plan, recent runs, and available daily health metrics to your configured Claude account. It requests an Opus analysis by default (see `FEEDBACK_CLAUDE_MODEL`), with tools and startup customizations disabled, validates the response, and stores the narrative locally. No external analysis skill is needed. Usage follows your Claude subscription or API account.
+Restart, open a run in Journal, and choose **Analyze this run**. The app starts Claude with the bundled `run-feedback` skill (`.claude/skills/run-feedback/SKILL.md`), on Opus by default (see `FEEDBACK_CLAUDE_MODEL`). The skill reads the run, its splits and laps (strides and reps), the plan, recent runs, health metrics and the recovery scorecard through this app's local API, then saves its feedback through `POST /api/activities/:id/feedback`. Claude may run only `curl` and `sqlite3`. The endpoint validates the feedback and fills the plan fields from the dashboard's own matching. Usage follows your Claude subscription or API account.
+
+To use your own feedback skill instead, set `FEEDBACK_SKILL` to its name, such as `my-plugin:run-feedback`. The prompt is `/<skill> <date>` followed by `Activity:`, `API:` and `Database:` lines; the skill must save through the feedback endpoint for the run to count as done.
 
 By default it uses Claude's current authenticated account. If you already use `cswap`, set `FEEDBACK_CLAUDE_ACCOUNT` to the email of the account you want; then both `claude` and `cswap` must be on PATH. The [Claude CLI reference](https://code.claude.com/docs/en/cli-reference) describes the command options.
 
-Analysis is disabled by default. The UI reports missing setup instead of offering an action that cannot run. A failed CLI call or invalid response keeps previous feedback intact. Re-analysis requires confirmation; only one analysis runs at a time, with a five-minute timeout.
+Analysis is disabled by default. The UI reports missing setup instead of offering an action that cannot run. A failed CLI call, or a run that ends without saving feedback, keeps previous feedback intact. Re-analysis requires confirmation; only one analysis runs at a time, with a five-minute timeout.
 
 ## Health metrics (optional)
 
